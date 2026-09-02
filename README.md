@@ -12,7 +12,7 @@ A small macOS menu bar app for people who end the day with Xcode, Photoshop, and
 
 <br>
 
-<img src="screenshots/demo.gif" width="340" alt="AutoQuit's menu bar popover — one row per running app with an on/off switch and a live countdown to auto-quit. One app is switched off and dims to ‘Excluded’, another's countdown ticks down to under a minute, then resets.">
+<img src="screenshots/demo.png" width="300" alt="AutoQuit's menu bar popover — one row per running app with an on/off switch, its memory footprint, and a live countdown to auto-quit, plus bulk close, pause, and Settings actions in the footer.">
 
 </div>
 
