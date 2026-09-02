@@ -1,331 +1,799 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "“Busy” means playing media, downloading, or keeping the Mac awake. A warning lets you keep an app before it’s quit." : {
-
-    },
-    "%lldh" : {
-
-    },
-    "Apps are asked to quit normally, so you can save your work." : {
-      "comment" : "Settings footer when force quit is off",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apps wordt gevraagd normaal af te sluiten, zodat je je werk kunt opslaan."
+  "sourceLanguage": "en",
+  "strings": {
+    "%lldh": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld小时"
           }
         }
       }
     },
-    "Apps you open appear here with a countdown until they’re auto-quit." : {
-      "comment" : "Empty-state subtitle in the menu bar popover",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apps die je opent verschijnen hier met een aftelling tot ze automatisch worden afgesloten."
+    "30 min": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 分钟"
           }
         }
       }
     },
-    "Auto-quit %@" : {
-      "comment" : "Toggle label; %@ is the app name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ automatisch afsluiten"
+    "Apps are asked to quit normally, so you can save your work — but if an app refuses to close within a few seconds (for example, a stuck confirmation dialog), it will be force-quit. Per app, the countdown menu also offers quit-and-restart instead of plain quitting.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会先礼貌地请求应用退出，方便你保存工作；但如果应用几秒内没有退出（比如卡在了确认退出窗口），就会强制终止。每个应用在倒数菜单里还可以选退出或退出后重启。"
           }
         }
       }
     },
-    "Auto-quit %@ when idle" : {
-      "comment" : "Tooltip on the per-app toggle when off; %@ is the app name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ automatisch afsluiten bij inactiviteit"
+    "Apps you open appear here with a countdown until they’re auto-quit.": {
+      "comment": "Empty-state subtitle in the menu bar popover",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps die je opent verschijnen hier met een aftelling tot ze automatisch worden afgesloten."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开的应用会显示在这里，并带有自动退出前的倒计时。"
           }
         }
       }
     },
-    "AutoQuit" : {
-      "comment" : "Brand name — do not translate",
-      "shouldTranslate" : false
-    },
-    "Close all selected" : {
-      "comment" : "Menu bar footer button: quit all selected apps now",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle geselecteerde afsluiten"
+    "Auto-quit %@": {
+      "comment": "Toggle label; %@ is the app name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ automatisch afsluiten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动退出 %@"
           }
         }
       }
     },
-    "Don’t quit busy apps" : {
-
-    },
-    "Excluded" : {
-      "comment" : "Countdown pill: app is opted out of auto-quit",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uitgesloten"
+    "Auto-quit %@ when idle": {
+      "comment": "Tooltip on the per-app toggle when off; %@ is the app name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ automatisch afsluiten bij inactiviteit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "闲置时自动退出 %@"
           }
         }
       }
     },
-    "Excluded from auto-quit" : {
-      "comment" : "Accessibility: app is opted out of auto-quit",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uitgesloten van automatisch afsluiten"
+    "Auto-quit paused": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动退出已暂停"
           }
         }
       }
     },
-    "Force close all selected" : {
-      "comment" : "Menu bar footer button: force quit all selected apps now",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle geselecteerde geforceerd afsluiten"
+    "AutoQuit": {
+      "comment": "Brand name — do not translate",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AutoQuit"
+          }
+        }
+      },
+      "shouldTranslate": false
+    },
+    "Close all selected": {
+      "comment": "Menu bar footer button: quit all selected apps now",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle geselecteerde afsluiten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭全部已选应用"
           }
         }
       }
     },
-    "Force quit %@ — discards unsaved changes" : {
-      "comment" : "Help/accessibility label for the force-close button; %@ is the app name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ geforceerd afsluiten — negeert niet-opgeslagen wijzigingen"
+    "Don’t quit busy apps": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不退出“忙碌”的应用"
           }
         }
       }
     },
-    "Force quit ends apps immediately and discards unsaved changes." : {
-      "comment" : "Settings footer when force quit is on",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geforceerd afsluiten beëindigt apps direct en negeert niet-opgeslagen wijzigingen."
+    "Excluded": {
+      "comment": "Countdown pill: app is opted out of auto-quit",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uitgesloten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已排除"
           }
         }
       }
     },
-    "Force quit without saving" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geforceerd afsluiten zonder opslaan"
+    "Excluded from auto-quit": {
+      "comment": "Accessibility: app is opted out of auto-quit",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uitgesloten van automatisch afsluiten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已排除自动退出"
           }
         }
       }
     },
-    "General" : {
-      "comment" : "Settings section header",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Algemeen"
+    "For 1 hour": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停 1 小时"
           }
         }
       }
     },
-    "Idle timeout" : {
-      "comment" : "Settings section header",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Time-out bij inactiviteit"
+    "For 4 hours": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停 4 小时"
           }
         }
       }
     },
-    "Idle too long — closing in 60 seconds. Keep it open?" : {
-      "comment" : "Auto-quit warning notification body"
-    },
-    "Keep" : {
-      "comment" : "Notification action: keep the idle app running"
-    },
-    "Launch at login" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Openen bij inloggen"
+    "Force close all selected": {
+      "comment": "Menu bar footer button: force quit all selected apps now",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle geselecteerde geforceerd afsluiten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制关闭全部已选应用"
           }
         }
       }
     },
-    "No apps to track" : {
-      "comment" : "Empty-state title in the menu bar popover",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geen apps om te volgen"
+    "Force quit %@ — discards unsaved changes": {
+      "comment": "Help/accessibility label for the force-close button; %@ is the app name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ geforceerd afsluiten — negeert niet-opgeslagen wijzigingen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制退出 %@ — 将丢弃未保存的更改"
           }
         }
       }
     },
-    "Quit %@" : {
-      "comment" : "Accessibility label for the quit button; %@ is the app name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ afsluiten"
+    "Force quit ends apps immediately and discards unsaved changes.": {
+      "comment": "Settings footer when force quit is on",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geforceerd afsluiten beëindigt apps direct en negeert niet-opgeslagen wijzigingen."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制退出会立即结束应用，并丢弃未保存的更改。"
           }
         }
       }
     },
-    "Quit apps after %lldh of inactivity" : {
-      "comment" : "Stepper label; %lld is the number of hours",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apps afsluiten na %lld uur inactiviteit"
+    "Force quit without saving": {
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geforceerd afsluiten zonder opslaan"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制退出（不保存）"
           }
         }
       }
     },
-    "Quit AutoQuit" : {
-      "comment" : "Brand name — do not translate",
-      "shouldTranslate" : false
-    },
-    "Quit now" : {
-      "comment" : "Notification action: quit the idle app immediately"
-    },
-    "Quits in %@" : {
-      "comment" : "Accessibility: time until auto-quit, e.g. “Quits in 1 hour, 30 minutes”",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sluit over %@"
+    "Freed %@ of memory.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "释放了 %@ 内存。"
           }
         }
       }
     },
-    "Quitting" : {
-      "comment" : "Settings section header for quit options",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afsluiten"
+    "General": {
+      "comment": "Settings section header",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algemeen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用"
           }
         }
       }
     },
-    "Quitting %@" : {
-      "comment" : "Auto-quit warning notification title"
-    },
-    "Reset idle timer for %@" : {
-      "comment" : "Accessibility label for the reset button; %@ is the app name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inactiviteitstimer voor %@ opnieuw instellen"
+    "Idle timeout": {
+      "comment": "Settings section header",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time-out bij inactiviteit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "闲置时限"
           }
         }
       }
     },
-    "Reset the idle timer for %@" : {
-      "comment" : "Tooltip for the reset button; %@ is the app name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inactiviteitstimer voor %@ opnieuw instellen"
+    "Idle too long — closing in %lld seconds. Keep it open?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "闲置时间过长——将在 %lld 秒后关闭。要保留吗？"
           }
         }
       }
     },
-    "Set how long %@ can stay idle before quitting" : {
-
-    },
-    "Set per-app exceptions from the menu bar list." : {
-      "comment" : "Settings footer under Idle timeout",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stel uitzonderingen per app in via de menubalklijst."
+    "Idle too long — restarting in %lld seconds. Keep it open?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "闲置时间过长——将在 %lld 秒后重启。要保留吗？"
           }
         }
       }
     },
-    "Settings" : {
-      "comment" : "Settings window title",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Instellingen"
+    "Keep": {
+      "comment": "Notification action: keep the idle app running",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留"
           }
         }
       }
     },
-    "Stop auto-quitting %@" : {
-      "comment" : "Tooltip on the per-app toggle when on; %@ is the app name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ niet meer automatisch afsluiten"
+    "Launch at login": {
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Openen bij inloggen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录时启动"
           }
         }
       }
     },
-    "Unknown" : {
-      "comment" : "Fallback shown when an app has no name",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Onbekend"
+    "No apps to track": {
+      "comment": "Empty-state title in the menu bar popover",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geen apps om te volgen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无跟踪的应用"
           }
         }
       }
     },
-    "Use default (%lldh)" : {
-
-    },
-    "Version %@ (%@)" : {
-      "comment" : "App version in Settings; first %@ is version, second is build number",
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Versie %@ (%@)"
+    "Notify about freed memory": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出后通知释放的内存"
           }
         }
       }
     },
-    "Warn before quitting" : {
-
+    "On power — auto-quit paused": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在使用电源——自动退出已暂停"
+          }
+        }
+      }
     },
-    "When idle" : {
-
+    "Only quit on battery power": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅在使用电池时自动退出"
+          }
+        }
+      }
+    },
+    "Pause auto-quit": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停自动退出"
+          }
+        }
+      }
+    },
+    "Pause auto-quit for a while — nothing is quit until you resume": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂时暂停自动退出——恢复之前不会退出任何应用"
+          }
+        }
+      }
+    },
+    "Quit": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出"
+          }
+        }
+      }
+    },
+    "Quit %@": {
+      "comment": "Accessibility label for the quit button; %@ is the app name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ afsluiten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出 %@"
+          }
+        }
+      }
+    },
+    "Quit AutoQuit": {
+      "comment": "Brand name — do not translate",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出 AutoQuit"
+          }
+        }
+      },
+      "shouldTranslate": false
+    },
+    "Quit apps after %lldh of inactivity": {
+      "comment": "Stepper label; %lld is the number of hours",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps afsluiten na %lld uur inactiviteit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用闲置 %lld 小时后退出"
+          }
+        }
+      }
+    },
+    "Quit now": {
+      "comment": "Notification action: quit the idle app immediately",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即退出"
+          }
+        }
+      }
+    },
+    "Quits in %@": {
+      "comment": "Accessibility: time until auto-quit, e.g. “Quits in 1 hour, 30 minutes”",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sluit over %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@后退出"
+          }
+        }
+      }
+    },
+    "Quitting": {
+      "comment": "Settings section header for quit options",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afsluiten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出"
+          }
+        }
+      }
+    },
+    "Quitting %@": {
+      "comment": "Auto-quit warning notification title",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即将退出 %@"
+          }
+        }
+      }
+    },
+    "Reset idle timer for %@": {
+      "comment": "Accessibility label for the reset button; %@ is the app name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inactiviteitstimer voor %@ opnieuw instellen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置 %@ 的闲置计时"
+          }
+        }
+      }
+    },
+    "Reset the idle timer for %@": {
+      "comment": "Tooltip for the reset button; %@ is the app name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inactiviteitstimer voor %@ opnieuw instellen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置 %@ 的闲置计时器"
+          }
+        }
+      }
+    },
+    "Restart": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重启"
+          }
+        }
+      }
+    },
+    "Restarted %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已重启 %@"
+          }
+        }
+      }
+    },
+    "Resume": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复"
+          }
+        }
+      }
+    },
+    "Set how long %@ can stay idle before quitting, and whether it is quit or restarted": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置 %@ 闲置多久后退出，以及到期是退出还是重启"
+          }
+        }
+      }
+    },
+    "Set per-app exceptions from the menu bar list.": {
+      "comment": "Settings footer under Idle timeout",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stel uitzonderingen per app in via de menubalklijst."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在菜单栏列表中设置按应用的例外。"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "comment": "Settings window title",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instellingen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "Start auto-quitting idle apps again": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新开始自动退出闲置应用"
+          }
+        }
+      }
+    },
+    "Stop auto-quitting %@": {
+      "comment": "Tooltip on the per-app toggle when on; %@ is the app name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ niet meer automatisch afsluiten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止自动退出 %@"
+          }
+        }
+      }
+    },
+    "Unknown": {
+      "comment": "Fallback shown when an app has no name",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Onbekend"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知"
+          }
+        }
+      }
+    },
+    "Until tomorrow morning": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到明天早上"
+          }
+        }
+      }
+    },
+    "Use default (%lldh)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用默认（%lld小时）"
+          }
+        }
+      }
+    },
+    "Version %@ (%@)": {
+      "comment": "App version in Settings; first %@ is version, second is build number",
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Versie %@ (%@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本 %@ (%@)"
+          }
+        }
+      }
+    },
+    "Warn before quitting": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出前先提醒"
+          }
+        }
+      }
+    },
+    "When idle": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "闲置时"
+          }
+        }
+      }
+    },
+    "When timer ends": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "倒计时结束后"
+          }
+        }
+      }
+    },
+    "an app": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用"
+          }
+        }
+      }
+    },
+    "“Busy” means playing media, downloading, or keeping the Mac awake. A warning lets you keep an app before it’s quit. With “battery only”, auto-quit stands down while the Mac is plugged in; idle clocks resume where they left off.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“忙碌”指正在播放媒体、下载或阻止 Mac 休眠。退出前提醒让你有机会保留应用。开启“仅电池”后，接通电源期间自动退出暂停；闲置计时会在改用电池后继续。"
+          }
+        }
+      }
+    },
+    "%@ uses %@ of memory, including helper processes": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 占用 %@ 内存（含辅助进程）"
+          }
+        }
+      }
     }
-  },
-  "version" : "1.0"
+  }
 }
