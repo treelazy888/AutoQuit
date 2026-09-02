@@ -1,4 +1,4 @@
-## Unreleased
+## Version 1.1.0 - 2026-09-03
 
 ### Features
 - Pause ("do not disturb"): stand auto-quit down for 1 hour, 4 hours, or until tomorrow morning. The menu-bar icon switches to a pause symbol, the popover shows remaining time with a Resume button, and idle clocks resume where they left off. A pause survives a relaunch.

