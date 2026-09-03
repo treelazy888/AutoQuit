@@ -15,7 +15,8 @@ import UserNotifications
 // The built-in idle time (8 hours), kept in one place so every part of the app
 // agrees on the same default.
 enum AppDefaults {
-    static let hoursUntilClose = 8
+    // Stored as Double so sub-hour limits (30 min = 0.5h) fit alongside whole hours.
+    static let hoursUntilClose: Double = 8
 }
 
 // A stable name tag for each app — its hidden bundle id, or its visible name if
@@ -38,8 +39,8 @@ enum QuitDecision {
     /// Per-app override wins; otherwise the global timeout. Pure, so it's unit-tested.
     /// Doubles so sub-hour limits (the 30-minute choice) fit; a stored whole hour
     /// still decodes as a Double, so existing saved values keep working.
-    static func effectiveHours(perApp: [String: Double], key: String, global: Int) -> Double {
-        perApp[key] ?? Double(global)
+    static func effectiveHours(perApp: [String: Double], key: String, global: Double) -> Double {
+        perApp[key] ?? global
     }
 
     /// Which expiry action this app uses — its own choice, or the default (quit).
@@ -141,7 +142,8 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     // only re-read then — the footprint scan touches every process on the system.
     private var windowIsOpen = false
     // Your saved preferences. These survive quitting and reopening the app.
-    @AppStorage("hoursUntilClose") var hoursUntilClose: Int = AppDefaults.hoursUntilClose
+    // Stored as Double so a 30-minute (0.5h) global limit fits alongside whole hours.
+    @AppStorage("hoursUntilClose") var hoursUntilClose: Double = AppDefaults.hoursUntilClose
     @AppStorage("forceQuit") var forceQuit: Bool = false
     @AppStorage("skipBusyApps") var skipBusyApps: Bool = true
     @AppStorage("warnBeforeQuit") var warnBeforeQuit: Bool = true
@@ -1411,7 +1413,7 @@ struct AppRow: View {
 
             Menu {
                 Picker("Idle timeout", selection: timeoutBinding) {
-                    Text("Use default (\(hoursUntilClose)h)").tag(0.0)
+                    Text("Use default (\(hoursUntilClose == 0.5 ? "30 min" : "\(Int(hoursUntilClose))h"))").tag(0.0)
                     Text("30 min").tag(0.5)
                     // ponytail: fixed timeout choices; no custom-value entry unless asked
                     ForEach([1, 2, 4, 8, 12, 24, 48], id: \.self) { Text("\($0)h").tag(Double($0)) }
@@ -1619,8 +1621,11 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Stepper("Quit apps after \(hoursUntilClose)h of inactivity",
-                            value: $hoursUntilClose, in: 1 ... 72)
+                    Picker("Idle timeout", selection: $hoursUntilClose) {
+                        ForEach(Self.idleTimeouts, id: \.self) { hours in
+                            Text(hours == 0.5 ? "30 min" : "\(Int(hours))h").tag(hours)
+                        }
+                    }
                 } header: {
                     Text("Idle timeout")
                 } footer: {
@@ -1651,6 +1656,9 @@ struct SettingsView: View {
             .formStyle(.grouped)
         }
     }
+
+    // Fixed preset order for the Idle timeout picker.
+    private static let idleTimeouts: [Double] = [0.5, 1, 2, 4, 8, 12, 24, 48]
 
     private var hero: some View {
         HStack(spacing: 14) {
