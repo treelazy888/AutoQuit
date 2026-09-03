@@ -3,6 +3,7 @@
 ### UI
 - Global idle timeout in Settings now offers a 30-minute option via a native dropdown (was previously restricted to whole hours via a stepper). The setting is stored as a Double internally so both whole-hour and 30-minute values coexist; previously saved whole-hour values load unchanged.
 - The dropdown uses the same macOS 26 inline style as the per-app timeout menu, so picking 30 min reads the same way in both places.
+- The per-app "Use default" label now localizes (e.g. "使用默认（30 分钟）" in zh-Hans).
 
 ## Version 1.1.0 - 2026-09-03
 
