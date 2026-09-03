@@ -1317,7 +1317,6 @@ struct AppRow: View {
     let lastActive: Date
     let now: Date
     @ObservedObject var manager: RunningAppsManager
-    @AppStorage("hoursUntilClose") private var hoursUntilClose = AppDefaults.hoursUntilClose
     @AppStorage("forceQuit") private var forceQuit = false
     @State private var isHovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -1341,6 +1340,19 @@ struct AppRow: View {
     }
 
     // 0 = "use the global default"; any other value is a per-app override.
+    private var globalTimeout: Double { manager.hoursUntilClose }
+
+    private var globalTimeoutLabel: String {
+        globalTimeout == 0.5 ? "30 min" : "\(Int(globalTimeout))h"
+    }
+
+    private var defaultTimeoutText: String {
+        if globalTimeout == 0.5 {
+            return String(localized: "Use default (30 min)")
+        }
+        return String(format: String(localized: "Use default (%lldh)"), Int(globalTimeout))
+    }
+
     private var timeoutBinding: Binding<Double> {
         Binding(
             get: { manager.perAppHours[app.toggleKey] ?? 0 },
@@ -1413,7 +1425,7 @@ struct AppRow: View {
 
             Menu {
                 Picker("Idle timeout", selection: timeoutBinding) {
-                    Text("Use default (\(hoursUntilClose == 0.5 ? "30 min" : "\(Int(hoursUntilClose))h"))").tag(0.0)
+                    Text(defaultTimeoutText).tag(0.0)
                     Text("30 min").tag(0.5)
                     // ponytail: fixed timeout choices; no custom-value entry unless asked
                     ForEach([1, 2, 4, 8, 12, 24, 48], id: \.self) { Text("\($0)h").tag(Double($0)) }

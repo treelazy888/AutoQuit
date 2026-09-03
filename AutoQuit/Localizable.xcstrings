@@ -705,6 +705,16 @@
         }
       }
     },
+    "Use default (30 min)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用默认（30 分钟）"
+          }
+        }
+      }
+    },
     "Use default (%lldh)": {
       "localizations": {
         "zh-Hans": {
