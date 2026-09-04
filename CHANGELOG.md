@@ -1,7 +1,12 @@
+## Version 1.1.5 - 2026-09-04
+
+### Fixes
+- Reverted the `isInserted` toggle approach from 1.1.4 (caused a freeze when opening Settings). The popover language fix now uses a wrapper view (`LocalePopover`) that observes the locale and ties `.id()` to the current language, forcing SwiftUI to rebuild the popover content on language change.
+
 ## Version 1.1.4 - 2026-09-04
 
 ### Fixes
-- Popover text now updates when switching language. `MenuBarExtra` caches its content closure, so `@ObservedObject` alone doesn't reach a closed popover. The menu-bar extra is now briefly removed and re-inserted on language change (`isInserted` toggle), forcing the content to rebuild with fresh strings.
+- Popover text now updates when switching language. MenuBarExtra caches its content closure, so @ObservedObject alone doesn't reach a closed popover. The menu-bar extra is now briefly removed and re-inserted on language change (`isInserted` toggle), forcing the content to rebuild with fresh strings.
 
 ## Version 1.1.3 - 2026-09-04
 
