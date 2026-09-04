@@ -1,3 +1,8 @@
+## Version 1.1.6 - 2026-09-04
+
+### Fixes
+- Popover text now updates when switching language. The `isInserted` binding is toggled off and on on language change to force MenuBarExtra to recreate its cached content. The binding ignores writes from MenuBarExtra, preventing the re-creation loop that caused the 1.1.4 freeze.
+
 ## Version 1.1.5 - 2026-09-04
 
 ### Fixes

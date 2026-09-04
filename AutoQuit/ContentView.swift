@@ -44,8 +44,23 @@ final class AppLocale: ObservableObject {
             bundle = language == "en"
                 ? nil
                 : Bundle(path: Bundle.main.path(forResource: language, ofType: "lproj") ?? "")
+
+            // MenuBarExtra caches its content closure, so @ObservedObject alone
+            // doesn't reach the closed popover. Briefly remove and re-insert the
+            // menu-bar extra to force the content closure to re-run with fresh
+            // strings. The binding in AutoQuitApp ignores writes from
+            // MenuBarExtra, so this doesn't cause a re-creation loop.
+            isInserted = false
+            DispatchQueue.main.async {
+                self.isInserted = true
+            }
         }
     }
+
+    // Controls whether the menu-bar extra is visible. Only written by this
+    // class; the binding in AutoQuitApp ignores external writes so MenuBarExtra
+    // can't trigger a re-creation loop.
+    @Published var isInserted = true
 
     private var bundle: Bundle?
 

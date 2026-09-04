@@ -32,22 +32,6 @@ private struct MenuBarLabel: View {
     }
 }
 
-// A thin wrapper around the popover content that observes the locale and ties
-// the content's `.id` to the current language. MenuBarExtra evaluates its
-// content closure once and reuses the resulting view, so @ObservedObject alone
-// doesn't reach the closed popover. When the language changes, this wrapper's
-// body re-evaluates, the `.id` changes, and SwiftUI tears down the old
-// content and builds fresh content with the new strings.
-private struct LocalePopover: View {
-    @ObservedObject var locale = AppLocale.shared
-    let manager: RunningAppsManager
-
-    var body: some View {
-        ContentView(manager: manager)
-            .id(locale.language)
-    }
-}
-
 // The app itself. It lives only in the menu bar — no Dock icon, no main window.
 @main
 struct AutoQuitApp: App {
@@ -60,9 +44,18 @@ struct AutoQuitApp: App {
     }
 
     var body: some Scene {
-        // The menu-bar icon; clicking it opens the popover (LocalePopover).
-        MenuBarExtra {
-            LocalePopover(manager: runningAppsManager)
+        // The menu-bar icon; clicking it opens the popover (ContentView).
+        // `isInserted` is toggled off and on when the language changes, so
+        // SwiftUI recreates the menu-bar extra and its cached popover content
+        // with fresh strings. The binding ignores writes from MenuBarExtra so
+        // it can't trigger a re-creation loop.
+        MenuBarExtra(
+            isInserted: Binding(
+                get: { locale.isInserted },
+                set: { _ in }  // ignore MenuBarExtra's writes
+            )
+        ) {
+            ContentView(manager: runningAppsManager)
         } label: {
             MenuBarLabel(manager: runningAppsManager)
         }
