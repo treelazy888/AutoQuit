@@ -336,6 +336,17 @@
         }
       }
     },
+    "Language": {
+      "comment": "Settings section header and picker label: UI language selector",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
+          }
+        }
+      }
+    },
     "Launch at login": {
       "localizations": {
         "nl": {
@@ -802,6 +813,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 占用 %@ 内存（含辅助进程）"
+          }
+        }
+      }
+    },
+    "Choose English or Simplified Chinese. The change applies immediately in new windows; reopen Settings to refresh this window.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择英文或简体中文。改动会在新窗口立即生效；已打开的设置窗口请关闭后重新打开以刷新。"
           }
         }
       }

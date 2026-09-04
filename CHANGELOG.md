@@ -1,3 +1,11 @@
+## Version 1.1.2 - 2026-09-04
+
+### Features
+- In-app language switcher (English / 简体中文) in the new "Language" section of Settings. The choice is saved to the app's own defaults and applies without changing the system language. Every visible string — menu rows, footers, per-app menus, tooltips, empty states, notifications, the settings form itself — now reads from the chosen language at runtime; English falls through to the source key so no translation table is needed for it.
+
+### Fixes
+- Per-app "Use default" label now follows the global idle timeout (was hard-coded to "0h" because the row read the setting as an Int while it is stored as a Double).
+
 ## Version 1.1.1 - 2026-09-03
 
 ### UI

@@ -36,6 +36,7 @@ private struct MenuBarLabel: View {
 @main
 struct AutoQuitApp: App {
     init() {
+        AppLocale.set()
         // Prepare the "Keep" / "Quit now" buttons shown on the warning notice.
         runningAppsManager.registerNotifications()
     }

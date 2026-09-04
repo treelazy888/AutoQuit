@@ -19,6 +19,54 @@ enum AppDefaults {
     static let hoursUntilClose: Double = 8
 }
 
+// Lets the user pick between English and Simplified Chinese without
+// changing the system language. `Bundle.preferredLocalizations` is read-only
+// in Swift, so we do a manual lookup: open the matching lproj bundle and
+// call `localizedString(forKey:table:)`. English is the source language, so
+// the "translation" is the key itself — no file lookup needed.
+struct AppLocale {
+    static let key = "appLanguage"
+
+    static let choices: [(id: String, label: String)] = [
+        ("en", "English"),
+        ("zh-Hans", "简体中文"),
+    ]
+
+    private static var lang: String = "en"
+    private static var bundle: Bundle?
+
+    static func set() {
+        let saved = UserDefaults.standard.string(forKey: key) ?? "en"
+        lang = saved
+        if saved != "en",
+           let path = Bundle.main.path(forResource: saved, ofType: "lproj") {
+            bundle = Bundle(path: path)
+        } else {
+            bundle = nil
+        }
+    }
+
+    static func save(_ id: String) {
+        UserDefaults.standard.set(id, forKey: key)
+        set()
+    }
+
+    static func current() -> String { lang }
+
+    // Plain key lookup. Falls back to the key itself when the language is
+    // English or the .strings file is missing the key.
+    static func L(_ key: String) -> String {
+        guard lang != "en", let bundle else { return key }
+        return bundle.localizedString(forKey: key, value: nil, table: "Localizable")
+    }
+
+    // Formatted lookup: pulls the template, then runs it through
+    // `String(format:)` with the supplied arguments.
+    static func Lf(_ key: String, _ args: CVarArg...) -> String {
+        String(format: L(key), locale: .autoupdatingCurrent, arguments: args)
+    }
+}
+
 // A stable name tag for each app — its hidden bundle id, or its visible name if
 // it has none. We use this to remember an app's settings even after it, or the
 // whole Mac, has restarted.
@@ -772,13 +820,12 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
 
     // The after-the-fact notice: "Quit Xcode — freed 1.2 GB of memory."
     private func notifyOutcome(name: String?, freedBytes: Int, restarted: Bool) {
-        let appName = name ?? String(localized: "an app", comment: "Fallback shown when an app has no name")
+        let appName = name ?? AppLocale.L("an app")
         let content = UNMutableNotificationContent()
         content.title = restarted
-            ? String(localized: "Restarted \(appName)", comment: "Outcome notification title: the idle app was quit and relaunched")
-            : String(localized: "Quit \(appName)", comment: "Outcome notification title: the idle app was quit")
-        content.body = String(localized: "Freed \(MemoryFormat.short(freedBytes)) of memory.",
-                              comment: "Outcome notification body: memory reclaimed by quitting the app")
+            ? AppLocale.Lf("Restarted %@", appName)
+            : AppLocale.Lf("Quit %@", appName)
+        content.body = AppLocale.Lf("Freed %@ of memory.", MemoryFormat.short(freedBytes))
         content.sound = .default
         let request = UNNotificationRequest(identifier: "autoquit.outcome.\(UUID().uuidString)",
                                             content: content, trigger: nil)
@@ -794,11 +841,11 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         center.delegate = self
         let keep = UNNotificationAction(
             identifier: "KEEP",
-            title: String(localized: "Keep", comment: "Notification action: keep the idle app running"),
+            title: AppLocale.L("Keep"),
             options: [])
         let quitNow = UNNotificationAction(
             identifier: "QUIT_NOW",
-            title: String(localized: "Quit now", comment: "Notification action: quit the idle app immediately"),
+            title: AppLocale.L("Quit now"),
             options: [.destructive])
         center.setNotificationCategories([
             UNNotificationCategory(identifier: Self.warningCategory, actions: [keep, quitNow],
@@ -811,13 +858,10 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     // AutoQuit simply quits idle apps without warning from then on.
     private func warn(_ app: NSRunningApplication) {
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "Quitting \(app.localizedName ?? "an app")",
-                               comment: "Auto-quit warning notification title")
+        content.title = AppLocale.Lf("Quitting %@", app.localizedName ?? AppLocale.L("an app"))
         content.body = effectiveAction(for: app) == .restart
-            ? String(localized: "Idle too long — restarting in \(Int(warningGrace)) seconds. Keep it open?",
-                     comment: "Auto-quit warning notification body (restart variant)")
-            : String(localized: "Idle too long — closing in \(Int(warningGrace)) seconds. Keep it open?",
-                     comment: "Auto-quit warning notification body")
+            ? AppLocale.Lf("Idle too long — restarting in %lld seconds. Keep it open?", Int(warningGrace))
+            : AppLocale.Lf("Idle too long — closing in %lld seconds. Keep it open?", Int(warningGrace))
         content.sound = .default
         content.categoryIdentifier = Self.warningCategory
         content.userInfo = ["toggleKey": app.toggleKey, "pid": Int(app.processIdentifier)]
@@ -936,7 +980,7 @@ struct ContentView: View {
                     Image(systemName: "pause.circle")
                         .foregroundStyle(.orange)
                         .accessibilityHidden(true)
-                    Text("Auto-quit paused")
+                    Text(AppLocale.L("Auto-quit paused"))
                         .font(.callout)
                         .fontWeight(.medium)
                     Spacer(minLength: 4)
@@ -944,9 +988,9 @@ struct ContentView: View {
                         .font(.callout)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
-                    Button("Resume") { manager.resume() }
+                    Button(AppLocale.L("Resume")) { manager.resume() }
                         .buttonStyle(.borderless)
-                        .help("Start auto-quitting idle apps again")
+                        .help(AppLocale.L("Start auto-quitting idle apps again"))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -959,7 +1003,7 @@ struct ContentView: View {
                 Image(systemName: "bolt.fill")
                     .foregroundStyle(.green)
                     .accessibilityHidden(true)
-                Text("On power — auto-quit paused")
+                Text(AppLocale.L("On power — auto-quit paused"))
                     .font(.callout)
                     .fontWeight(.medium)
                 Spacer(minLength: 0)
@@ -1011,30 +1055,30 @@ struct ContentView: View {
             if #available(macOS 26, *) {
                 GlassEffectContainer(spacing: 6) {
                     VStack(spacing: 6) {
-                        commandButton("Close all selected", "xmark.circle") { closeSelected(force: false) }
+                        commandButton(LocalizedStringKey(AppLocale.L("Close all selected")), "xmark.circle") { closeSelected(force: false) }
                             .disabled(!hasSelection)
-                        commandButton("Force close all selected", "xmark.octagon", iconColor: .red) { closeSelected(force: true) }
+                        commandButton(LocalizedStringKey(AppLocale.L("Force close all selected")), "xmark.octagon", iconColor: .red) { closeSelected(force: true) }
                             .disabled(!hasSelection)
                         pauseMenu
-                        commandButton("Settings", "gearshape") { SettingsWindowController.show() }
-                        commandButton("Quit AutoQuit", "power") { NSApplication.shared.terminate(nil) }
+                        commandButton(LocalizedStringKey(AppLocale.L("Settings")), "gearshape") { SettingsWindowController.show() }
+                        commandButton(LocalizedStringKey(AppLocale.L("Quit AutoQuit")), "power") { NSApplication.shared.terminate(nil) }
                     }
                 }
             } else {
                 VStack(spacing: 2) {
-                    MenuCommandButton(title: "Close all selected", systemImage: "xmark.circle") {
+                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Close all selected")), systemImage: "xmark.circle") {
                         closeSelected(force: false)
                     }
                     .disabled(!hasSelection)
-                    MenuCommandButton(title: "Force close all selected", systemImage: "xmark.octagon", iconColor: .red) {
+                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Force close all selected")), systemImage: "xmark.octagon", iconColor: .red) {
                         closeSelected(force: true)
                     }
                     .disabled(!hasSelection)
                     pauseMenu
-                    MenuCommandButton(title: "Settings", systemImage: "gearshape") {
+                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Settings")), systemImage: "gearshape") {
                         SettingsWindowController.show()
                     }
-                    MenuCommandButton(title: "Quit AutoQuit", systemImage: "power") {
+                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Quit AutoQuit")), systemImage: "power") {
                         NSApplication.shared.terminate(nil)
                     }
                 }
@@ -1055,11 +1099,11 @@ struct ContentView: View {
             Button {
                 openPauseMenu()
             } label: {
-                footerLabel("Pause auto-quit", "pause.circle")
+                footerLabel(LocalizedStringKey(AppLocale.L("Pause auto-quit")), "pause.circle")
             }
             .buttonStyle(.glass)
-            .accessibilityLabel(Text("Pause auto-quit"))
-            .help("Pause auto-quit for a while — nothing is quit until you resume")
+            .accessibilityLabel(Text(AppLocale.L("Pause auto-quit")))
+            .help(AppLocale.L("Pause auto-quit for a while — nothing is quit until you resume"))
         } else {
             MenuCommandMenu(title: "Pause auto-quit", systemImage: "pause.circle") {
                 pauseItems
@@ -1070,12 +1114,12 @@ struct ContentView: View {
     // Presents the pause durations as a native menu right where the user clicked.
     private func openPauseMenu() {
         let target = PauseMenuTarget(manager: manager)
-        let menu = NSMenu(title: String(localized: "Pause auto-quit"))
+        let menu = NSMenu(title: AppLocale.L("Pause auto-quit"))
         menu.autoenablesItems = false
         let entries: [(String, Selector)] = [
-            (String(localized: "For 1 hour"), #selector(PauseMenuTarget.pauseOneHour)),
-            (String(localized: "For 4 hours"), #selector(PauseMenuTarget.pauseFourHours)),
-            (String(localized: "Until tomorrow morning"), #selector(PauseMenuTarget.pauseTomorrowMorning)),
+            (AppLocale.L("For 1 hour"), #selector(PauseMenuTarget.pauseOneHour)),
+            (AppLocale.L("For 4 hours"), #selector(PauseMenuTarget.pauseFourHours)),
+            (AppLocale.L("Until tomorrow morning"), #selector(PauseMenuTarget.pauseTomorrowMorning)),
         ]
         for (title, selector) in entries {
             let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
@@ -1089,9 +1133,9 @@ struct ContentView: View {
 
     @ViewBuilder
     private var pauseItems: some View {
-        Button("For 1 hour") { manager.pause(for: 3600) }
-        Button("For 4 hours") { manager.pause(for: 4 * 3600) }
-        Button("Until tomorrow morning") { manager.pauseUntilTomorrowMorning() }
+        Button(AppLocale.L("For 1 hour")) { manager.pause(for: 3600) }
+        Button(AppLocale.L("For 4 hours")) { manager.pause(for: 4 * 3600) }
+        Button(AppLocale.L("Until tomorrow morning")) { manager.pauseUntilTomorrowMorning() }
     }
 
     /// One row of the footer: icon + title, full width, uniform padding. Shared by
@@ -1245,9 +1289,9 @@ private struct EmptyTrackingView: View {
                 .frame(width: 76, height: 76)
                 .glassCard(Circle())
             VStack(spacing: 4) {
-                Text("No apps to track")
+                Text(AppLocale.L("No apps to track"))
                     .font(.headline)
-                Text("Apps you open appear here with a countdown until they’re auto-quit.")
+                Text(AppLocale.L("Apps you open appear here with a countdown until they’re auto-quit."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -1322,7 +1366,7 @@ struct AppRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var displayName: String {
-        app.localizedName ?? String(localized: "Unknown", comment: "Fallback shown when an app has no name")
+        app.localizedName ?? AppLocale.L("Unknown")
     }
     private var willQuit: Bool { manager.willAutoQuit(app) }
 
@@ -1348,9 +1392,9 @@ struct AppRow: View {
 
     private var defaultTimeoutText: String {
         if globalTimeout == 0.5 {
-            return String(localized: "Use default (30 min)")
+            return AppLocale.L("Use default (30 min)")
         }
-        return String(format: String(localized: "Use default (%lldh)"), Int(globalTimeout))
+        return AppLocale.Lf("Use default (%lldh)", Int(globalTimeout))
     }
 
     private var timeoutBinding: Binding<Double> {
@@ -1381,23 +1425,22 @@ struct AppRow: View {
     private var statusText: String {
         willQuit
             ? IdleTime.short(secondsLeft)
-            : String(localized: "Excluded", comment: "Countdown pill: app is opted out of auto-quit")
+            : AppLocale.L("Excluded")
     }
 
     private var statusAccessibility: String {
         willQuit
-            ? String(localized: "Quits in \(IdleTime.verbose(secondsLeft))",
-                     comment: "Accessibility: time until auto-quit, e.g. “Quits in 1 hour, 30 minutes”")
-            : String(localized: "Excluded from auto-quit", comment: "Accessibility: app is opted out of auto-quit")
+            ? AppLocale.Lf("Quits in %@", IdleTime.verbose(secondsLeft))
+            : AppLocale.L("Excluded from auto-quit")
     }
 
     var body: some View {
         HStack(spacing: 10) {
             Toggle(isOn: shouldQuitCheckbox) {
-                Text("Auto-quit \(displayName)")
+                Text(AppLocale.Lf("Auto-quit %@", displayName))
             }
             .toggleStyle(AutoQuitToggleStyle())
-            .help(willQuit ? "Stop auto-quitting \(displayName)" : "Auto-quit \(displayName) when idle")
+            .help(willQuit ? AppLocale.Lf("Stop auto-quitting %@", displayName) : AppLocale.Lf("Auto-quit %@ when idle", displayName))
 
             if let icon = app.icon {
                 Image(nsImage: icon)
@@ -1418,23 +1461,23 @@ struct AppRow: View {
                         .font(.caption2)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
-                        .help(String(format: String(localized: "%@ uses %@ of memory, including helper processes"), locale: .autoupdatingCurrent, displayName, MemoryFormat.short(total)))
+                        .help(AppLocale.Lf("%@ uses %@ of memory, including helper processes", displayName, MemoryFormat.short(total)))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Menu {
-                Picker("Idle timeout", selection: timeoutBinding) {
+                Picker(AppLocale.L("Idle timeout"), selection: timeoutBinding) {
                     Text(defaultTimeoutText).tag(0.0)
-                    Text("30 min").tag(0.5)
+                    Text(AppLocale.L("30 min")).tag(0.5)
                     // ponytail: fixed timeout choices; no custom-value entry unless asked
-                    ForEach([1, 2, 4, 8, 12, 24, 48], id: \.self) { Text("\($0)h").tag(Double($0)) }
+                    ForEach([1, 2, 4, 8, 12, 24, 48], id: \.self) { Text(AppLocale.Lf("%lldh", $0)).tag(Double($0)) }
                 }
                 .pickerStyle(.inline)
                 Divider()
-                Picker("When timer ends", selection: expiryActionBinding) {
-                    Text("Quit").tag(AppAction.quit.rawValue)
-                    Text("Restart").tag(AppAction.restart.rawValue)
+                Picker(AppLocale.L("When timer ends"), selection: expiryActionBinding) {
+                    Text(AppLocale.L("Quit")).tag(AppAction.quit.rawValue)
+                    Text(AppLocale.L("Restart")).tag(AppAction.restart.rawValue)
                 }
                 .pickerStyle(.inline)
             } label: {
@@ -1448,7 +1491,7 @@ struct AppRow: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help("Set how long \(displayName) can stay idle before quitting, and whether it is quit or restarted")
+            .help(AppLocale.Lf("Set how long %@ can stay idle before quitting, and whether it is quit or restarted", displayName))
 
             Button {
                 manager.runningApps[app] = Date()
@@ -1457,8 +1500,8 @@ struct AppRow: View {
             }
             .buttonStyle(.borderless)
             .disabled(!willQuit)
-            .help("Reset the idle timer for \(displayName)")
-            .accessibilityLabel("Reset idle timer for \(displayName)")
+            .help(AppLocale.Lf("Reset the idle timer for %@", displayName))
+            .accessibilityLabel(AppLocale.Lf("Reset idle timer for %@", displayName))
 
             Button {
                 app.terminate()
@@ -1466,8 +1509,8 @@ struct AppRow: View {
                 Image(systemName: "xmark.circle")
             }
             .buttonStyle(.borderless)
-            .help("Quit \(displayName)")
-            .accessibilityLabel("Quit \(displayName)")
+            .help(AppLocale.Lf("Quit %@", displayName))
+            .accessibilityLabel(AppLocale.Lf("Quit %@", displayName))
 
             Button {
                 app.forceTerminate()
@@ -1476,8 +1519,8 @@ struct AppRow: View {
                     .foregroundStyle(.red)
             }
             .buttonStyle(.borderless)
-            .help("Force quit \(displayName) — discards unsaved changes")
-            .accessibilityLabel("Force quit \(displayName) — discards unsaved changes")
+            .help(AppLocale.Lf("Force quit %@ — discards unsaved changes", displayName))
+            .accessibilityLabel(AppLocale.Lf("Force quit %@ — discards unsaved changes", displayName))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
@@ -1567,7 +1610,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
         ).sizeThatFits(in: CGSize(width: 480, height: CGFloat.greatestFiniteMagnitude)).height
         let hostingController = NSHostingController(rootView: rootView.frame(width: 480, height: min(ideal, cap)))
         let window = NSWindow(contentViewController: hostingController)
-        window.title = String(localized: "Settings", comment: "Settings window title")
+        window.title = AppLocale.L("Settings")
         self.init(window: window)
         window.delegate = self
         SettingsWindowController.current = self
@@ -1610,6 +1653,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
 // options for how idle apps are handled.
 struct SettingsView: View {
     @AppStorage("hoursUntilClose") private var hoursUntilClose = AppDefaults.hoursUntilClose
+    @AppStorage("appLanguage") private var language = "en"
     @AppStorage("forceQuit") private var forceQuit = false
     @AppStorage("skipBusyApps") private var skipBusyApps = true
     @AppStorage("warnBeforeQuit") private var warnBeforeQuit = true
@@ -1628,41 +1672,54 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             hero
             Form {
-                Section("General") {
+                Section(AppLocale.L("General")) {
                     LaunchAtLoginToggle()
                 }
 
                 Section {
-                    Picker("Idle timeout", selection: $hoursUntilClose) {
+                    Picker(AppLocale.L("Language"), selection: $language) {
+                        ForEach(Array(AppLocale.choices), id: \.id) { choice in
+                            Text(choice.label).tag(choice.id)
+                        }
+                    }
+                    .onChange(of: language) { _ in AppLocale.save(language) }
+                } header: {
+                    Text(AppLocale.L("Language"))
+                } footer: {
+                    Text(AppLocale.L("Choose English or Simplified Chinese. The change applies immediately in new windows; reopen Settings to refresh this window."))
+                }
+
+                Section {
+                    Picker(AppLocale.L("Idle timeout"), selection: $hoursUntilClose) {
                         ForEach(Self.idleTimeouts, id: \.self) { hours in
-                            Text(hours == 0.5 ? "30 min" : "\(Int(hours))h").tag(hours)
+                            Text(hours == 0.5 ? AppLocale.L("30 min") : AppLocale.Lf("%lldh", Int(hours))).tag(hours)
                         }
                     }
                 } header: {
-                    Text("Idle timeout")
+                    Text(AppLocale.L("Idle timeout"))
                 } footer: {
-                    Text("Set per-app exceptions from the menu bar list.")
+                    Text(AppLocale.L("Set per-app exceptions from the menu bar list."))
                 }
 
                 Section {
-                    Toggle("Don’t quit busy apps", isOn: $skipBusyApps)
-                    Toggle("Warn before quitting", isOn: $warnBeforeQuit)
-                    Toggle("Only quit on battery power", isOn: $batteryOnlyQuit)
+                    Toggle(AppLocale.L("Don’t quit busy apps"), isOn: $skipBusyApps)
+                    Toggle(AppLocale.L("Warn before quitting"), isOn: $warnBeforeQuit)
+                    Toggle(AppLocale.L("Only quit on battery power"), isOn: $batteryOnlyQuit)
                 } header: {
-                    Text("When idle")
+                    Text(AppLocale.L("When idle"))
                 } footer: {
-                    Text("“Busy” means playing media, downloading, or keeping the Mac awake. A warning lets you keep an app before it’s quit. With “battery only”, auto-quit stands down while the Mac is plugged in; idle clocks resume where they left off.")
+                    Text(AppLocale.L("“Busy” means playing media, downloading, or keeping the Mac awake. A warning lets you keep an app before it’s quit. With “battery only”, auto-quit stands down while the Mac is plugged in; idle clocks resume where they left off."))
                 }
 
                 Section {
-                    Toggle("Force quit without saving", isOn: $forceQuit)
-                    Toggle("Notify about freed memory", isOn: $notifyFreedMemory)
+                    Toggle(AppLocale.L("Force quit without saving"), isOn: $forceQuit)
+                    Toggle(AppLocale.L("Notify about freed memory"), isOn: $notifyFreedMemory)
                 } header: {
-                    Text("Quitting")
+                    Text(AppLocale.L("Quitting"))
                 } footer: {
                     Text(forceQuit
-                        ? "Force quit ends apps immediately and discards unsaved changes."
-                        : "Apps are asked to quit normally, so you can save your work. Per app, the countdown menu also offers quit-and-restart instead of plain quitting.")
+                        ? AppLocale.L("Force quit ends apps immediately and discards unsaved changes.")
+                        : AppLocale.L("Apps are asked to quit normally, so you can save your work. Per app, the countdown menu also offers quit-and-restart instead of plain quitting."))
                 }
             }
             .formStyle(.grouped)
@@ -1680,10 +1737,10 @@ struct SettingsView: View {
                 .frame(width: 60, height: 60)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text("AutoQuit")
+                Text(AppLocale.L("AutoQuit"))
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("Version \(appVersion) (\(appBuildNumber))")
+                Text(AppLocale.Lf("Version %@ (%@)", appVersion, appBuildNumber))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -1710,7 +1767,7 @@ struct LaunchAtLoginToggle: View {
     @State private var isEnabled = SMAppService.mainApp.status == .enabled
 
     var body: some View {
-        Toggle("Launch at login", isOn: Binding(
+        Toggle(AppLocale.L("Launch at login"), isOn: Binding(
             get: { isEnabled },
             set: { newValue in
                 do {
