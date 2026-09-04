@@ -45,7 +45,10 @@ struct AutoQuitApp: App {
 
     var body: some Scene {
         // The menu-bar icon; clicking it opens the popover (ContentView).
-        MenuBarExtra {
+        // `isInserted` is toggled off and on when the language changes, so
+        // SwiftUI recreates the menu-bar extra and its cached popover content
+        // with fresh strings.
+        MenuBarExtra(isInserted: $locale.isInserted) {
             ContentView(manager: runningAppsManager)
         } label: {
             MenuBarLabel(manager: runningAppsManager)

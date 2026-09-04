@@ -44,8 +44,21 @@ final class AppLocale: ObservableObject {
             bundle = language == "en"
                 ? nil
                 : Bundle(path: Bundle.main.path(forResource: language, ofType: "lproj") ?? "")
+
+            // MenuBarExtra evaluates its content closure once and reuses the
+            // resulting view, so @ObservedObject alone doesn't reach the closed
+            // popover. Briefly remove and re-insert the menu-bar extra to force
+            // the content closure to re-run with fresh strings.
+            isInserted = false
+            DispatchQueue.main.async {
+                self.isInserted = true
+            }
         }
     }
+
+    // Drives MenuBarExtra's isInserted binding. Toggling it off and on
+    // recreates the menu-bar extra and its cached popover content.
+    @Published var isInserted = true
 
     private var bundle: Bundle?
 
