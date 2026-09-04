@@ -1,3 +1,8 @@
+## Version 1.1.3 - 2026-09-04
+
+### Fixes
+- Switching the language in Settings now updates the popover, the Settings window, and the window title immediately — no reopen needed. `AppLocale` is now an `ObservableObject` with a `@Published` language; views that read its strings re-render on change. The picker in Settings binds directly to the store, so there's no `.onChange` save step and no "reopen to refresh" note.
+
 ## Version 1.1.2 - 2026-09-04
 
 ### Features

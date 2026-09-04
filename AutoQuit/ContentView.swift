@@ -24,7 +24,10 @@ enum AppDefaults {
 // in Swift, so we do a manual lookup: open the matching lproj bundle and
 // call `localizedString(forKey:table:)`. English is the source language, so
 // the "translation" is the key itself — no file lookup needed.
-struct AppLocale {
+//
+// Backed by an ObservableObject so that changing the language re-renders
+// every view that observes it (the popover AND the Settings window).
+final class AppLocale: ObservableObject {
     static let key = "appLanguage"
 
     static let choices: [(id: String, label: String)] = [
@@ -32,31 +35,34 @@ struct AppLocale {
         ("zh-Hans", "简体中文"),
     ]
 
-    private static var lang: String = "en"
-    private static var bundle: Bundle?
+    private(set) static var shared = AppLocale()
 
-    static func set() {
-        let saved = UserDefaults.standard.string(forKey: key) ?? "en"
-        lang = saved
-        if saved != "en",
-           let path = Bundle.main.path(forResource: saved, ofType: "lproj") {
-            bundle = Bundle(path: path)
-        } else {
-            bundle = nil
+    @Published var language: String {
+        didSet {
+            guard oldValue != language else { return }
+            UserDefaults.standard.set(language, forKey: Self.key)
+            bundle = language == "en"
+                ? nil
+                : Bundle(path: Bundle.main.path(forResource: language, ofType: "lproj") ?? "")
         }
     }
 
-    static func save(_ id: String) {
-        UserDefaults.standard.set(id, forKey: key)
-        set()
+    private var bundle: Bundle?
+
+    private init() {
+        language = UserDefaults.standard.string(forKey: Self.key) ?? "en"
+        if language != "en" {
+            bundle = Bundle(path: Bundle.main.path(forResource: language, ofType: "lproj") ?? "")
+        }
     }
 
-    static func current() -> String { lang }
+    static func current() -> String { shared.language }
 
     // Plain key lookup. Falls back to the key itself when the language is
     // English or the .strings file is missing the key.
     static func L(_ key: String) -> String {
-        guard lang != "en", let bundle else { return key }
+        let shared = Self.shared
+        guard shared.language != "en", let bundle = shared.bundle else { return key }
         return bundle.localizedString(forKey: key, value: nil, table: "Localizable")
     }
 
@@ -937,6 +943,7 @@ private extension View {
 // (or a friendly empty state), with Settings and Quit buttons at the bottom.
 struct ContentView: View {
     @ObservedObject private var manager: RunningAppsManager
+    @ObservedObject private var locale = AppLocale.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("batteryOnlyQuit") private var batteryOnlyQuit = false
 
@@ -1652,8 +1659,8 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
 // The Settings window's contents: launch-at-login, the idle timeout, and the
 // options for how idle apps are handled.
 struct SettingsView: View {
+    @ObservedObject private var locale = AppLocale.shared
     @AppStorage("hoursUntilClose") private var hoursUntilClose = AppDefaults.hoursUntilClose
-    @AppStorage("appLanguage") private var language = "en"
     @AppStorage("forceQuit") private var forceQuit = false
     @AppStorage("skipBusyApps") private var skipBusyApps = true
     @AppStorage("warnBeforeQuit") private var warnBeforeQuit = true
@@ -1677,16 +1684,15 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Picker(AppLocale.L("Language"), selection: $language) {
+                    Picker(AppLocale.L("Language"), selection: $locale.language) {
                         ForEach(Array(AppLocale.choices), id: \.id) { choice in
                             Text(choice.label).tag(choice.id)
                         }
                     }
-                    .onChange(of: language) { _ in AppLocale.save(language) }
                 } header: {
                     Text(AppLocale.L("Language"))
                 } footer: {
-                    Text(AppLocale.L("Choose English or Simplified Chinese. The change applies immediately in new windows; reopen Settings to refresh this window."))
+                    Text(AppLocale.L("Choose English or Simplified Chinese. The change applies immediately."))
                 }
 
                 Section {
@@ -1723,6 +1729,9 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
+        }
+        .onChange(of: locale.language) { _ in
+            NSApp.keyWindow?.title = AppLocale.L("Settings")
         }
     }
 

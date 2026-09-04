@@ -35,8 +35,10 @@ private struct MenuBarLabel: View {
 // The app itself. It lives only in the menu bar — no Dock icon, no main window.
 @main
 struct AutoQuitApp: App {
+    // Observed so the whole scene re-renders when the user switches language.
+    @ObservedObject private var locale = AppLocale.shared
+
     init() {
-        AppLocale.set()
         // Prepare the "Keep" / "Quit now" buttons shown on the warning notice.
         runningAppsManager.registerNotifications()
     }
