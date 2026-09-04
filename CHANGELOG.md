@@ -1,3 +1,8 @@
+## Version 1.1.7 - 2026-09-04
+
+### Fixes
+- Busy-app detection now catches download managers like Baidu Netdisk (百度网盘). Previously only checked for sleep-preventing assertions, but downloaders hold `NoIdleSleepAssertion` instead. Added `kIOPMAssertionTypeNoIdleSleep` and `kIOPMAssertionTypeNoDisplaySleep` to the busy types.
+
 ## Version 1.1.6 - 2026-09-04
 
 ### Fixes

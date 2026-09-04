@@ -607,7 +607,9 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         else { return [] }
         let busyTypes: Set<String> = [kIOPMAssertionTypePreventUserIdleSystemSleep,
                                       kIOPMAssertionTypePreventSystemSleep,
-                                      kIOPMAssertionTypePreventUserIdleDisplaySleep]
+                                      kIOPMAssertionTypePreventUserIdleDisplaySleep,
+                                      kIOPMAssertionTypeNoIdleSleep,
+                                      kIOPMAssertionTypeNoDisplaySleep]
         return Set(byProcess.compactMap { pid, list in
             list.contains { ($0[kIOPMAssertionTypeKey] as? String).map(busyTypes.contains) ?? false }
                 ? pid_t(pid) : nil
