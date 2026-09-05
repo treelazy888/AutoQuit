@@ -1,3 +1,8 @@
+## Version 1.2.2 - 2026-09-05
+
+### Fixes
+- The popover now reliably closes when clicking anywhere outside it. NSPopover's built-in transient dismissal turned out to be unreliable for a status item in an accessory app (clicks in other apps often didn't dismiss it). The popover now installs its own global + local mouse monitors while shown: clicks outside the popover (excluding the status-item toggle and our own popup menus, e.g. the pause menu) close it. Verified live.
+
 ## Version 1.2.1 - 2026-09-05
 
 ### Features

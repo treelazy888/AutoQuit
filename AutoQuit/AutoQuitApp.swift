@@ -35,6 +35,11 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     // that click reads as "close" instead of "close + reopen".
     private var lastCloseDate: Date?
 
+    // NSPopover's built-in transient dismissal is unreliable for a status item
+    // in an accessory app (clicks in other apps often don't dismiss it), so
+    // outside clicks are watched explicitly while the popover is shown.
+    private var outsideClickMonitors: [Any] = []
+
     init(manager: RunningAppsManager) {
         self.manager = manager
         super.init()
@@ -83,11 +88,48 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
         if let button = statusItem.button {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            installOutsideClickMonitors()
         }
+    }
+
+    // Any mouse-down that isn't on the popover itself, the status item (that's
+    // the toggle), or one of our popup menus (the pause menu anchors to the
+    // popover) closes the popover. Global monitors cover clicks in other apps;
+    // local ones cover clicks in our own windows.
+    private func installOutsideClickMonitors() {
+        guard outsideClickMonitors.isEmpty else { return }
+        outsideClickMonitors.append(NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] _ in
+            self?.dismissForOutsideClick(clickedWindow: nil)
+        })
+        outsideClickMonitors.append(NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            self?.dismissForOutsideClick(clickedWindow: event.window)
+            return event
+        })
+    }
+
+    private func dismissForOutsideClick(clickedWindow: NSWindow?) {
+        guard popover.isShown else {
+            removeOutsideClickMonitors()
+            return
+        }
+        if let button = statusItem.button, clickedWindow === button.window { return }
+        if clickedWindow === popover.contentViewController?.view.window { return }
+        if clickedWindow?.className.contains("Menu") == true { return }
+        popover.performClose(nil)
+    }
+
+    private func removeOutsideClickMonitors() {
+        outsideClickMonitors.forEach { NSEvent.removeMonitor($0) }
+        outsideClickMonitors.removeAll()
     }
 
     func popoverDidClose(_ notification: Notification) {
         lastCloseDate = Date()
+        removeOutsideClickMonitors()
     }
 }
 
