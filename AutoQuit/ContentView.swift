@@ -984,6 +984,10 @@ struct ContentView: View {
     @ObservedObject private var locale = AppLocale.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("batteryOnlyQuit") private var batteryOnlyQuit = false
+    // Settings → Main panel: which apps are listed (regular vs all) and how many
+    // rows to show (5 / 10 / all — stored as 0).
+    @AppStorage("listAppScope") private var listAppScope = "regular"
+    @AppStorage("listDisplayLimit") private var listDisplayLimit = 10
 
     init(manager: RunningAppsManager) {
         self.manager = manager
@@ -1001,10 +1005,22 @@ struct ContentView: View {
         }
     }
 
+    // The rows the popover actually shows, honoring the Settings → Main panel
+    // choices: app scope (regular vs all) and how many rows (5 / 10 / all).
+    // Tracking and auto-quit keep working on everything; this only filters the
+    // display, plus "close all selected" acts on exactly what's visible.
+    private var visibleApps: [NSRunningApplication] {
+        let base = listAppScope == "all"
+            ? sortedApps
+            : sortedApps.filter { $0.activationPolicy == .regular }
+        guard listDisplayLimit > 0 else { return base }   // 0 = show all
+        return Array(base.prefix(listDisplayLimit))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             statusBar
-            if manager.runningApps.isEmpty {
+            if visibleApps.isEmpty {
                 EmptyTrackingView()
             } else {
                 appList
@@ -1070,7 +1086,7 @@ struct ContentView: View {
     private var appList: some View {
         // Redraw once a second so every countdown stays live while the menu is open.
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let apps = sortedApps
+            let apps = visibleApps
             let list = VStack(spacing: 2) {
                 ForEach(apps, id: \.self) { app in
                     AppRow(app: app,
@@ -1192,11 +1208,12 @@ struct ContentView: View {
     }
 
     private var hasSelection: Bool {
-        manager.runningApps.keys.contains { manager.willAutoQuit($0) }
+        visibleApps.contains { manager.willAutoQuit($0) }
     }
 
     private func closeSelected(force: Bool) {
-        for app in Array(manager.runningApps.keys) where manager.willAutoQuit(app) {
+        // "All selected" means exactly the rows the user can see.
+        for app in visibleApps where manager.willAutoQuit(app) {
             _ = force ? app.forceTerminate() : app.terminate()
         }
         // No manual cleanup: the 1s timer in RunningAppsManager prunes apps that
@@ -1825,6 +1842,8 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
 // options for how idle apps are handled.
 struct SettingsView: View {
     @ObservedObject private var locale = AppLocale.shared
+    @AppStorage("listAppScope") private var listAppScope = "regular"
+    @AppStorage("listDisplayLimit") private var listDisplayLimit = 10
     @AppStorage("hoursUntilClose") private var hoursUntilClose = AppDefaults.hoursUntilClose
     @AppStorage("forceQuit") private var forceQuit = false
     @AppStorage("skipBusyApps") private var skipBusyApps = true
@@ -1846,6 +1865,22 @@ struct SettingsView: View {
             Form {
                 Section(AppLocale.L("General")) {
                     LaunchAtLoginToggle()
+                }
+
+                Section {
+                    Picker(AppLocale.L("Apps shown"), selection: $listAppScope) {
+                        Text(AppLocale.L("Regular apps")).tag("regular")
+                        Text(AppLocale.L("All apps")).tag("all")
+                    }
+                    Picker(AppLocale.L("Display count"), selection: $listDisplayLimit) {
+                        Text("5").tag(5)
+                        Text("10").tag(10)
+                        Text(AppLocale.L("All")).tag(0)
+                    }
+                } header: {
+                    Text(AppLocale.L("Main panel"))
+                } footer: {
+                    Text(AppLocale.L("Choose which apps the main panel lists and how many rows to show. Menu-bar apps always start excluded from auto-quit."))
                 }
 
                 Section {

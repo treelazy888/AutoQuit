@@ -1,3 +1,11 @@
+## Version 1.3.3 - 2026-09-05
+
+### Features
+- New Settings → 主面板 (Main panel) section controlling what the popover lists:
+  - **显示的应用 (Apps shown)**: 普通应用 (regular apps only) or 全部应用 (regular + menu-bar apps).
+  - **显示数量 (Display count)**: 5, 10 (default), or 全部 (all).
+  - "关闭全部已选应用" acts on exactly the rows shown. Tracking and auto-quit continue for all apps regardless of display filtering; menu-bar apps still start excluded.
+
 ## Version 1.3.2 - 2026-09-05
 
 ### Changed

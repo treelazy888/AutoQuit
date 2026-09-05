@@ -826,6 +826,83 @@
           }
         }
       }
+    },
+    "Main panel": {
+      "comment": "Settings section header: main panel display options",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主面板"
+          }
+        }
+      }
+    },
+    "Apps shown": {
+      "comment": "Picker label: which apps appear in the main panel",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示的应用"
+          }
+        }
+      }
+    },
+    "Display count": {
+      "comment": "Picker label: how many rows the main panel shows",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示数量"
+          }
+        }
+      }
+    },
+    "Regular apps": {
+      "comment": "Option: show only regular (Dock-icon) apps",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通应用"
+          }
+        }
+      }
+    },
+    "All apps": {
+      "comment": "Option: show regular + menu-bar apps",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部应用"
+          }
+        }
+      }
+    },
+    "All": {
+      "comment": "Option: show every tracked app, no limit",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部"
+          }
+        }
+      }
+    },
+    "Choose which apps the main panel lists and how many rows to show. Menu-bar apps always start excluded from auto-quit.": {
+      "comment": "Settings footer for main panel display options",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择主面板列出哪些应用以及显示几行。菜单栏类应用默认不自动退出。"
+          }
+        }
+      }
     }
   }
 }
