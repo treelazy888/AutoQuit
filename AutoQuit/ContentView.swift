@@ -1170,6 +1170,8 @@ struct ContentView: View {
     /// The title is a plain String rendered verbatim: a LocalizedStringKey here
     /// would make SwiftUI look the already-translated string up in the bundle
     /// again by system language, flipping an English UI back to Chinese.
+    /// `.foregroundStyle(.primary)` keeps the text at full label strength —
+    /// inside a popover the glass button style otherwise mutes it to gray.
     private func footerLabel(_ title: String, _ systemImage: String,
                              iconColor: Color? = nil) -> some View {
         Label {
@@ -1181,6 +1183,7 @@ struct ContentView: View {
                 Image(systemName: systemImage)
             }
         }
+        .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 3)
         .padding(.horizontal, 2)

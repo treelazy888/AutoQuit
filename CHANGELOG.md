@@ -1,3 +1,8 @@
+## Version 1.2.3 - 2026-09-05
+
+### Fixes
+- Popover footer text is back to full-strength black (label color) instead of gray. Inside the new NSPopover, the macOS 26 glass button style muted the label text; the footer labels now set `.foregroundStyle(.primary)` explicitly (black in light mode, white in dark mode; the red force-close icon is unaffected).
+
 ## Version 1.2.2 - 2026-09-05
 
 ### Fixes
