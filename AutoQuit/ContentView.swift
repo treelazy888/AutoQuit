@@ -277,6 +277,9 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     // Wine/Whisky reports itself as "wine"; the parsed Windows program name
     // (from the command line) makes the rows tell each other apart.
     var displayNames: [pid_t: String] = [:]
+    // PIDs identified as Wine's own plumbing (device/service hosts) — hidden
+    // from the list, and addCurrentRunningApps won't re-add them.
+    private var hiddenWinePIDs: Set<pid_t> = []
     // Pids that are mid-quit (grace period after a graceful request). While a
     // pid is here, don't re-add it to tracking — otherwise a stuck confirmation
     // dialog re-adds the app with a fresh idle clock and never auto-quits again.
@@ -704,7 +707,8 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         let currentDate = Date()
 
         for app in apps where !isBlockedApp(app) && runningApps[app] == nil
-                              && !quitingPIDs.contains(app.processIdentifier) {
+                              && !quitingPIDs.contains(app.processIdentifier)
+                              && !hiddenWinePIDs.contains(app.processIdentifier) {
             runningApps[app] = currentDate
         }
     }
@@ -745,6 +749,28 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
             let table = processTable()
             let paths = processPaths(for: table.allPIDs)
             let cmdlines = processCommandLines()
+
+            // Wine's own plumbing — device/service hosts (winedevice.exe and
+            // friends) auto-spawned beside any Windows program, all named
+            // "wine" with near-identical memory — is machinery, not an app:
+            // hide it. Real programs keep their parsed name. A pid stays
+            // hidden for its lifetime so the pass above doesn't re-add it.
+            let wineInfra: Set<String> = ["winedevice", "services", "plugplay",
+                                          "wineserver", "wineboot", "rpcss", "conhost"]
+            var infraApps: [NSRunningApplication] = []
+            for app in runningApps.keys where app.localizedName?.lowercased() == "wine" {
+                let parsed = cmdlines[app.processIdentifier].flatMap { wineDisplayName(from: $0) }
+                if parsed == nil || wineInfra.contains(parsed!.lowercased()) {
+                    infraApps.append(app)
+                }
+            }
+            for app in infraApps {
+                runningApps[app] = nil
+                hiddenWinePIDs.insert(app.processIdentifier)
+                memoryUsage[app.processIdentifier] = nil
+                displayNames[app.processIdentifier] = nil
+            }
+
             for app in runningApps.keys {
                 let pid = app.processIdentifier
                 memoryUsage[pid] = residentMemoryIncludingResponsible(of: pid, in: table.tree,

@@ -1,3 +1,8 @@
+## Version 1.3.5 - 2026-09-05
+
+### Fixes
+- Wine's own plumbing is hidden from the list. Alongside any Windows program, Wine auto-spawns device/service host processes (winedevice.exe and friends) that all report themselves as "wine" with near-identical memory — they were the mysterious duplicate rows. Real Windows programs (e.g. ds-proxy.exe → "ds-proxy") stay listed under their parsed name; the plumbing processes are hidden for their lifetime and never re-added.
+
 ## Version 1.3.4 - 2026-09-05
 
 ### Features
