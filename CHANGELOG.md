@@ -1,3 +1,8 @@
+## Version 1.3.7 - 2026-09-05
+
+### Changed
+- Wine rows display as `Wine(程序名)` — e.g. `Wine(explorer)`, `Wine(gmterm-serv)` — making it obvious at a glance that these rows belong to the Wine layer and which Windows program each one is.
+
 ## Version 1.3.6 - 2026-09-05
 
 ### Changed

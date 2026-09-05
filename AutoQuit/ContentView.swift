@@ -653,11 +653,12 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     }
 
     // Row display name: for Wine processes prefer the parsed Windows program
-    // name over the generic "wine".
+    // name over the generic "wine", shown as Wine(程序名) so it's obvious
+    // these rows all belong to the Wine layer.
     func displayName(for app: NSRunningApplication) -> String {
         if app.localizedName?.lowercased() == "wine",
            let name = displayNames[app.processIdentifier], !name.isEmpty {
-            return name
+            return "Wine(\(name))"
         }
         return app.localizedName ?? ""
     }
