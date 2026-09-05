@@ -277,9 +277,6 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     // Wine/Whisky reports itself as "wine"; the parsed Windows program name
     // (from the command line) makes the rows tell each other apart.
     var displayNames: [pid_t: String] = [:]
-    // PIDs identified as Wine's own plumbing (device/service hosts) — hidden
-    // from the list, and addCurrentRunningApps won't re-add them.
-    private var hiddenWinePIDs: Set<pid_t> = []
     // Pids that are mid-quit (grace period after a graceful request). While a
     // pid is here, don't re-add it to tracking — otherwise a stuck confirmation
     // dialog re-adds the app with a fresh idle clock and never auto-quits again.
@@ -641,15 +638,13 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         })
     }
 
-    // Wine launches every Windows program as a macOS process named "wine".
-    // From its command line (`…/bin/wine C:\…\game.exe` or with a POSIX path)
-    // pick the last .exe argument and use its basename as a readable name. The
-    // launcher path may itself contain spaces, so Wine is detected anywhere in
-    // the command line, and taking the LAST .exe token survives spaces in the
-    // Windows-side path (`C:\My Games\app.exe`).
+    // Wine launches every Windows program as a macOS process named "wine", and
+    // `ps` shows that process's command line as just the Windows command line
+    // (`C:\…\ds-proxy.exe serve …` — no Wine path in it). Take the last .exe
+    // argument and use its basename as a readable name; taking the LAST token
+    // survives spaces in the Windows-side path (`C:\My Games\app.exe`).
+    // Callers only invoke this for processes literally named "wine".
     private func wineDisplayName(from cmdline: String) -> String? {
-        let lower = cmdline.lowercased()
-        guard lower.contains("wine"), lower.contains(".exe") else { return nil }
         let tokens = cmdline.split(separator: " ").map(String.init)
         guard let exeArg = tokens.last(where: { $0.lowercased().hasSuffix(".exe") }) else { return nil }
         let base = exeArg.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last ?? Substring(exeArg)
@@ -707,8 +702,7 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         let currentDate = Date()
 
         for app in apps where !isBlockedApp(app) && runningApps[app] == nil
-                              && !quitingPIDs.contains(app.processIdentifier)
-                              && !hiddenWinePIDs.contains(app.processIdentifier) {
+                              && !quitingPIDs.contains(app.processIdentifier) {
             runningApps[app] = currentDate
         }
     }
@@ -749,27 +743,6 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
             let table = processTable()
             let paths = processPaths(for: table.allPIDs)
             let cmdlines = processCommandLines()
-
-            // Wine's own plumbing — device/service hosts (winedevice.exe and
-            // friends) auto-spawned beside any Windows program, all named
-            // "wine" with near-identical memory — is machinery, not an app:
-            // hide it. Real programs keep their parsed name. A pid stays
-            // hidden for its lifetime so the pass above doesn't re-add it.
-            let wineInfra: Set<String> = ["winedevice", "services", "plugplay",
-                                          "wineserver", "wineboot", "rpcss", "conhost"]
-            var infraApps: [NSRunningApplication] = []
-            for app in runningApps.keys where app.localizedName?.lowercased() == "wine" {
-                let parsed = cmdlines[app.processIdentifier].flatMap { wineDisplayName(from: $0) }
-                if parsed == nil || wineInfra.contains(parsed!.lowercased()) {
-                    infraApps.append(app)
-                }
-            }
-            for app in infraApps {
-                runningApps[app] = nil
-                hiddenWinePIDs.insert(app.processIdentifier)
-                memoryUsage[app.processIdentifier] = nil
-                displayNames[app.processIdentifier] = nil
-            }
 
             for app in runningApps.keys {
                 let pid = app.processIdentifier

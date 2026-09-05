@@ -1,3 +1,8 @@
+## Version 1.3.6 - 2026-09-05
+
+### Changed
+- Wine rows keep their parsed names instead of being hidden: the 1.3.5 hiding is reverted per feedback — the rows stay listed, labeled with the actual Windows program parsed from the command line (`explorer`, `gmterm-serv`, `ds-proxy`…). Also fixed the parser: `ps` shows a wine process's command line as just the Windows command (no Wine path in it), so requiring "wine" inside the line made every parse fail and rows stayed generic.
+
 ## Version 1.3.5 - 2026-09-05
 
 ### Fixes
