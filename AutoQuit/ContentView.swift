@@ -1080,16 +1080,14 @@ struct ContentView: View {
     private var footer: some View {
         Group {
             if #available(macOS 26, *) {
-                GlassEffectContainer(spacing: 6) {
-                    VStack(spacing: 6) {
-                        commandButton(AppLocale.L("Close all selected"), "xmark.circle") { closeSelected(force: false) }
-                            .disabled(!hasSelection)
-                        commandButton(AppLocale.L("Force close all selected"), "xmark.octagon", iconColor: .red) { closeSelected(force: true) }
-                            .disabled(!hasSelection)
-                        pauseMenu
-                        commandButton(AppLocale.L("Settings"), "gearshape") { SettingsWindowController.show() }
-                        commandButton(AppLocale.L("Quit AutoQuit"), "power") { NSApplication.shared.terminate(nil) }
-                    }
+                VStack(spacing: 6) {
+                    commandButton(AppLocale.L("Close all selected"), "xmark.circle") { closeSelected(force: false) }
+                        .disabled(!hasSelection)
+                    commandButton(AppLocale.L("Force close all selected"), "xmark.octagon", iconColor: .red) { closeSelected(force: true) }
+                        .disabled(!hasSelection)
+                    pauseMenu
+                    commandButton(AppLocale.L("Settings"), "gearshape") { SettingsWindowController.show() }
+                    commandButton(AppLocale.L("Quit AutoQuit"), "power") { NSApplication.shared.terminate(nil) }
                 }
             } else {
                 VStack(spacing: 2) {
@@ -1115,21 +1113,17 @@ struct ContentView: View {
     }
 
     // "Pause auto-quit" styled exactly like its footer siblings. On macOS 26 the
-    // row is a real glass Button (same construction as the Settings button, so the
-    // rendering is pixel-identical) and the three durations are presented as a
-    // native NSMenu anchored at the mouse — SwiftUI has no glass MenuStyle, and a
-    // hand-drawn glass card on a Menu label can't match the button style's shape
-    // and hover behavior. On older macOS both branches share the same hover row.
+    // row is a FooterCommandButton (same translucent pill) and the three
+    // durations are presented as a native NSMenu anchored at the mouse —
+    // SwiftUI has no MenuStyle matching the row look, so a hand-drawn label
+    // can't match the button style's shape and hover behavior. On older macOS
+    // both branches share the same hover row.
     @ViewBuilder
     private var pauseMenu: some View {
         if #available(macOS 26, *) {
-            Button {
+            FooterCommandButton(title: AppLocale.L("Pause auto-quit"), systemImage: "pause.circle") {
                 openPauseMenu()
-            } label: {
-                footerLabel(AppLocale.L("Pause auto-quit"), "pause.circle")
             }
-            .buttonStyle(.glass)
-            .accessibilityLabel(Text(AppLocale.L("Pause auto-quit")))
             .help(AppLocale.L("Pause auto-quit for a while — nothing is quit until you resume"))
         } else {
             MenuCommandMenu(title: AppLocale.L("Pause auto-quit"), systemImage: "pause.circle") {
@@ -1165,40 +1159,18 @@ struct ContentView: View {
         Button(AppLocale.L("Until tomorrow morning")) { manager.pauseUntilTomorrowMorning() }
     }
 
-    /// One row of the footer: icon + title, full width, uniform padding. Shared by
-    /// the glass buttons and the "Pause auto-quit" menu so they look identical.
-    /// The title is a plain String rendered verbatim: a LocalizedStringKey here
-    /// would make SwiftUI look the already-translated string up in the bundle
-    /// again by system language, flipping an English UI back to Chinese.
-    /// `.foregroundStyle(.primary)` keeps the text at full label strength —
-    /// inside a popover the glass button style otherwise mutes it to gray.
-    private func footerLabel(_ title: String, _ systemImage: String,
-                             iconColor: Color? = nil) -> some View {
-        Label {
-            Text(verbatim: title)
-        } icon: {
-            if let iconColor {
-                Image(systemName: systemImage).foregroundStyle(iconColor)
-            } else {
-                Image(systemName: systemImage)
-            }
-        }
-        .foregroundStyle(.primary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 3)
-        .padding(.horizontal, 2)
-        .contentShape(Rectangle())
-    }
-
+    /// One row of the footer: icon + title, full width, uniform padding. Shared
+    /// by the translucent pills and the "Pause auto-quit" menu so they look
+    /// identical. The title is a plain String rendered verbatim: a
+    /// LocalizedStringKey here would make SwiftUI look the already-translated
+    /// string up in the bundle again by system language, flipping an English UI
+    /// back to Chinese.
     @available(macOS 26, *)
     private func commandButton(_ title: String, _ systemImage: String,
                                iconColor: Color? = nil,
                                action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            footerLabel(title, systemImage, iconColor: iconColor)
-        }
-        .buttonStyle(.glass)
-        .accessibilityLabel(Text(verbatim: title))
+        FooterCommandButton(title: title, systemImage: systemImage,
+                            iconColor: iconColor, action: action)
     }
 
     private var hasSelection: Bool {
@@ -1225,8 +1197,59 @@ private final class PauseMenuTarget: NSObject {
     @objc func pauseTomorrowMorning() { manager.pauseUntilTomorrowMorning() }
 }
 
+// A footer row for macOS 26: a translucent material pill. The Liquid Glass
+// button style rendered near-opaque inside the popover; the material keeps the
+// pill see-through so it matches the popover background. Text stays full
+// strength (verbatim String — see MenuCommandButton for why), with a subtle
+// darkening on hover for feedback.
+private struct FooterCommandButton: View {
+    let title: String
+    let systemImage: String
+    var iconColor: Color? = nil
+    let action: () -> Void
+    @State private var isHovering = false
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            Label {
+                Text(verbatim: title)
+            } icon: {
+                if let iconColor {
+                    Image(systemName: systemImage).foregroundStyle(iconColor)
+                } else {
+                    Image(systemName: systemImage)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .background {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(.regularMaterial)
+        }
+        .overlay {
+            if isHovering {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(0.08))
+            }
+        }
+        .opacity(isEnabled ? 1 : 0.45)
+        .onHover { hovering in
+            guard !reduceMotion else { isHovering = hovering; return }
+            withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
+        }
+        .accessibilityLabel(Text(verbatim: title))
+    }
+}
+
 // A row-style button used in the popover footer on older macOS versions.
-// The title is a plain String rendered verbatim — see footerLabel for why a
+// The title is a plain String rendered verbatim — see MenuCommandButton for why a
 // LocalizedStringKey here would leak the system language into the UI.
 private struct MenuCommandButton: View {
     let title: String

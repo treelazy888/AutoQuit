@@ -1,3 +1,13 @@
+## Version 1.2.6 - 2026-09-05
+
+### Changed
+- The popover's five footer options are now translucent material pills instead of near-opaque Liquid Glass buttons, so they match the popover's see-through background. Hover feedback kept (subtle darkening); disabled rows (no apps selected) stay dimmed.
+
+## Version 1.2.5 - 2026-09-05
+
+### Reverted
+- Restored the popover's original translucent background after the fully-opaque experiment in 1.2.4 (never publicly released).
+
 ## Version 1.2.3 - 2026-09-05
 
 ### Fixes
