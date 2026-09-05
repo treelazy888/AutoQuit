@@ -1,3 +1,8 @@
+## Version 1.2.9 - 2026-09-05
+
+### Fixes
+- Settings no longer vanishes right after opening. The transient-close re-check fired 0.15s after the window lost key — too aggressive when the system is busy and key status hasn't settled yet (e.g. right after opening Settings from the popover, whose dismissal reshuffles focus). The check now retries for up to ~1.2s while the app is still active and nothing else holds key, and only closes once another app clearly holds focus.
+
 ## Version 1.2.8 - 2026-09-05
 
 ### Changed

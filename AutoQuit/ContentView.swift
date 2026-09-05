@@ -1766,15 +1766,26 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func windowDidResignKey(_ notification: Notification) {
         guard !isMenuTracking else { return }
-        // Focus can flap for a beat when our own transient popover dismisses
-        // right after Settings opens from it. Don't react instantly — re-check
-        // shortly: if the window didn't regain key, the user really went
-        // elsewhere and Settings closes; if key came back, it stays.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        scheduleTransientCloseCheck()
+    }
+
+    // Key status can take a few frames to settle right after the window opens
+    // (especially when launched from the popover, whose dismissal reshuffles
+    // focus) — closing on the first not-key observation made Settings vanish
+    // instantly. Instead, re-check until either the window regains key (stay
+    // open) or another app is clearly holding focus (close). While our own app
+    // is still active and nothing else holds key, focus is still settling: keep
+    // waiting (bounded) rather than closing a window the user just opened.
+    private func scheduleTransientCloseCheck(attempt: Int = 0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self, let window = self.window, window.isVisible else { return }
             if self.isMenuTracking { return }
             if window.isKeyWindow { return }
             if NSApp.keyWindow?.className.contains("Menu") == true { return }
+            if NSApp.keyWindow == nil, NSApp.isActive, attempt < 6 {
+                self.scheduleTransientCloseCheck(attempt: attempt + 1)
+                return
+            }
             self.closeAsTransient()
         }
     }
