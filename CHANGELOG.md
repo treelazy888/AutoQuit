@@ -1,3 +1,10 @@
+## Version 1.4.0 - 2026-09-05
+
+### Features
+- **Live CPU/MEM readout in the menu bar**: the status item now shows a 2×2 readout — top row labels `CPU` / `MEM`, bottom row the CPU usage % and memory pressure % (share of RAM in active use). Refreshed every 2 seconds. Drawn with a custom AppKit view that handles its own clicks (SwiftUI hosting views inside a status button swallow real mouse events — same class of issue as the footer-overlay bug), so clicking it still toggles the popover.
+- While auto-quit is paused, the item swaps back to the pause glyph so the stand-down state stays visible.
+- Note: CPU **temperature** in Celsius is not obtainable on macOS 26 — Apple blocks SMC sensor reads for third-party apps (every AppleSMC call returns kIOReturnBadArgument regardless of struct size), so the bottom-left shows CPU usage % instead.
+
 ## Version 1.3.9 - 2026-09-05
 
 ### Fixes
