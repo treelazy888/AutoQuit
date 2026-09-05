@@ -1,3 +1,8 @@
+## Version 1.3.2 - 2026-09-05
+
+### Changed
+- Menu-bar (accessory) apps — like wallpaper engines WaifuX or WinDock — now appear in the list. Previously only regular apps were tracked, so apps without a Dock icon were invisible. For safety these default to auto-quit OFF (rows show 已排除): quitting a persistent utility breaks the setup it powers, so they're listed for visibility and memory, and only quit if you switch the row's toggle on. Apple's own system surfaces (Finder, Dock, Spotlight…) remain fully hidden.
+
 ## Version 1.3.1 - 2026-09-05
 
 ### Fixes

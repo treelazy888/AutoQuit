@@ -634,18 +634,22 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         })
     }
 
-    // Should this app be auto-quit at all? Yes by default, unless you've switched
-    // it off. (Also checks an older-style saved setting so choices made before an
-    // update still count.)
+    // Should this app be auto-quit at all? Regular apps: yes by default, unless
+    // you've switched it off. Menu-bar (accessory) apps: no by default — they're
+    // listed for visibility, but quitting a wallpaper engine or clipboard manager
+    // breaks the setup, so they only auto-quit if you switch them on. (Also
+    // checks an older-style saved setting so choices made before an update still
+    // count.)
     func willAutoQuit(_ app: NSRunningApplication) -> Bool {
-        toggleStatus[app.toggleKey] ?? toggleStatus[app.localizedName ?? ""] ?? true
+        let defaultOn = app.activationPolicy == .regular
+        return toggleStatus[app.toggleKey] ?? toggleStatus[app.localizedName ?? ""] ?? defaultOn
     }
 
-    // The safety list: apps AutoQuit must never touch. Background helpers and
-    // menu-bar tools, AutoQuit itself, and Apple's own system apps (Finder, Dock,
-    // Spotlight, Siri…) are always left alone. This filter exists because quitting
-    // them caused real bugs — e.g. menu-bar utilities like Bartender getting
-    // killed by mistake.
+    // The safety list: apps AutoQuit must never show or touch — Apple's own
+    // system surfaces (Finder, Dock, Spotlight, Siri…) and AutoQuit itself.
+    // Everything else is listed, including menu-bar (accessory) apps; those
+    // default to auto-quit off (see willAutoQuit) so background utilities stay
+    // safe unless you opt them in.
     private func isBlockedApp(_ app: NSRunningApplication) -> Bool {
         let currentAppBundleIdentifier = Bundle.main.bundleIdentifier
         let excludedIdentifiers = ["com.apple.loginwindow",
@@ -657,10 +661,9 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
                                    "com.apple.notificationcenterui",
                                    "com.apple.Siri"
         ]
-        if app.activationPolicy == .regular && app.bundleIdentifier != currentAppBundleIdentifier && !excludedIdentifiers.contains(app.bundleIdentifier ?? "") {
-            return false
-        }
-        return true
+        if app.bundleIdentifier == currentAppBundleIdentifier { return true }
+        if excludedIdentifiers.contains(app.bundleIdentifier ?? "") { return true }
+        return false
     }
 
     // Add any apps that are already open (and allowed to be tracked) to the list,
