@@ -82,7 +82,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         if let lastCloseDate, Date().timeIntervalSince(lastCloseDate) < 0.15 { return }
 
         // Rebuild on every show so the strings match the current language.
-        let controller = NSHostingController(rootView: ContentView(manager: manager))
+        // A half-strength window background over NSPopover's default material
+        // dials the transparency down a notch: less see-through than the bare
+        // popover, lighter than the fully-opaque background tried in 1.2.4.
+        // Tune the 0.5 to taste — 0 = original, 1 = fully opaque.
+        let controller = NSHostingController(rootView: ContentView(manager: manager)
+            .background(Color(nsColor: .windowBackgroundColor).opacity(0.5)))
         controller.sizingOptions = .preferredContentSize
         popover.contentViewController = controller
 
