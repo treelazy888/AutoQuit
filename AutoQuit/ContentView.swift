@@ -273,6 +273,10 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     // check so the rows show real numbers while the popover is open. phys_footprint
     // includes every descendant process, so a row shows one number — the summary.
     @Published var memoryUsage: [pid_t: Int] = [:]
+    // Friendly names for Wine processes: every Windows program launched through
+    // Wine/Whisky reports itself as "wine"; the parsed Windows program name
+    // (from the command line) makes the rows tell each other apart.
+    var displayNames: [pid_t: String] = [:]
     // Pids that are mid-quit (grace period after a graceful request). While a
     // pid is here, don't re-add it to tracking — otherwise a stuck confirmation
     // dialog re-adds the app with a fresh idle clock and never auto-quits again.
@@ -634,6 +638,32 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         })
     }
 
+    // Wine launches every Windows program as a macOS process named "wine".
+    // From its command line (`…/bin/wine C:\…\game.exe` or with a POSIX path)
+    // pick the last .exe argument and use its basename as a readable name. The
+    // launcher path may itself contain spaces, so Wine is detected anywhere in
+    // the command line, and taking the LAST .exe token survives spaces in the
+    // Windows-side path (`C:\My Games\app.exe`).
+    private func wineDisplayName(from cmdline: String) -> String? {
+        let lower = cmdline.lowercased()
+        guard lower.contains("wine"), lower.contains(".exe") else { return nil }
+        let tokens = cmdline.split(separator: " ").map(String.init)
+        guard let exeArg = tokens.last(where: { $0.lowercased().hasSuffix(".exe") }) else { return nil }
+        let base = exeArg.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last ?? Substring(exeArg)
+        let name = base.dropLast(4)   // strip ".exe"
+        return name.isEmpty ? nil : String(name)
+    }
+
+    // Row display name: for Wine processes prefer the parsed Windows program
+    // name over the generic "wine".
+    func displayName(for app: NSRunningApplication) -> String {
+        if app.localizedName?.lowercased() == "wine",
+           let name = displayNames[app.processIdentifier], !name.isEmpty {
+            return name
+        }
+        return app.localizedName ?? ""
+    }
+
     // Should this app be auto-quit at all? Regular apps: yes by default, unless
     // you've switched it off. Menu-bar (accessory) apps: no by default — they're
     // listed for visibility, but quitting a wallpaper engine or clipboard manager
@@ -710,6 +740,7 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         // while a window is open: summing an app's helper processes means scanning
         // every process on the system, which isn't worth doing every minute.
         memoryUsage = memoryUsage.filter { runningPIDs.contains($0.key) }
+        displayNames = displayNames.filter { runningPIDs.contains($0.key) }
         if windowIsOpen {
             let table = processTable()
             let paths = processPaths(for: table.allPIDs)
@@ -718,6 +749,14 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
                 let pid = app.processIdentifier
                 memoryUsage[pid] = residentMemoryIncludingResponsible(of: pid, in: table.tree,
                     for: app, paths: paths, cmdlines: cmdlines)
+                // Wine rows all read "wine"; surface the real Windows program
+                // name so the rows can be told apart.
+                if app.localizedName?.lowercased() == "wine", let cl = cmdlines[pid],
+                   let name = wineDisplayName(from: cl) {
+                    displayNames[pid] = name
+                } else {
+                    displayNames[pid] = nil
+                }
             }
         }
 
@@ -826,6 +865,7 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         runningApps[app] = nil
         warnedAt[pid] = nil
         memoryUsage[pid] = nil
+        displayNames[pid] = nil
 
         if wantsRestart, let bundleURL {
             relaunch(name: name, bundleURL: bundleURL)
@@ -1467,7 +1507,8 @@ struct AppRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var displayName: String {
-        app.localizedName ?? AppLocale.L("Unknown")
+        let fromManager = manager.displayName(for: app)
+        return fromManager.isEmpty ? (app.localizedName ?? AppLocale.L("Unknown")) : fromManager
     }
     private var willQuit: Bool { manager.willAutoQuit(app) }
 

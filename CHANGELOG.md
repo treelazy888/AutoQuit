@@ -1,3 +1,8 @@
+## Version 1.3.4 - 2026-09-05
+
+### Features
+- Wine rows now show the actual Windows program name instead of a generic "wine" for every row. Each Windows program launched through Wine/Whisky is its own macOS process all named "wine"; the name is parsed from the process command line (the .exe argument), so `starcraft.exe` reads as "starcraft". Handles spaces in both the launcher and Windows-side paths; non-.exe Wine launches keep the generic name.
+
 ## Version 1.3.3 - 2026-09-05
 
 ### Features
