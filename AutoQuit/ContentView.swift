@@ -1631,8 +1631,20 @@ enum IdleTime {
 
 // Manages the Settings window. It remembers the one already open, so clicking
 // Settings again just brings it back to the front instead of opening a second.
+// Like the popover, Settings is transient: clicking anywhere outside the
+// window closes it.
 class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static var current: SettingsWindowController?
+
+    // Transient-close machinery. Two paths cover everything: a local mouse
+    // monitor catches clicks inside our own app (status item, popover, Dock
+    // icon while visible), and windowDidResignKey catches clicks that go to
+    // other apps. Both hold off while a popup menu is open — the language
+    // picker's menu takes key status and lives outside the window frame, and
+    // without the guard the window would close the moment you opened it.
+    private var clickMonitors: [Any] = []
+    private var menuObservers: [NSObjectProtocol] = []
+    private var isMenuTracking = false
 
     convenience init(rootView: SettingsView) {
         // Fit the window to its content, but never taller than two-thirds of the screen.
@@ -1668,12 +1680,77 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        installTransientClose()
+    }
+
+    private func installTransientClose() {
+        guard clickMonitors.isEmpty else { return }
+
+        menuObservers = [
+            NotificationCenter.default.addObserver(
+                forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main
+            ) { [weak self] _ in self?.isMenuTracking = true },
+            NotificationCenter.default.addObserver(
+                forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main
+            ) { [weak self] _ in self?.isMenuTracking = false },
+        ]
+
+        clickMonitors.append(NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            self?.handleOutsideClick(clickedWindow: event.window)
+            return event
+        })
+    }
+
+    private func handleOutsideClick(clickedWindow: NSWindow?) {
+        guard let window, window.isVisible else { return }
+        // Clicks inside Settings (including its title bar) keep it open.
+        if clickedWindow === window { return }
+        // Clicks on an open popup menu pick an option; they must not close us.
+        if isMenuTracking || clickedWindow?.className.contains("Menu") == true { return }
+        closeAsTransient()
+    }
+
+    private func closeAsTransient() {
+        removeTransientClose()
+        guard let window, window.isVisible else { return }
+        window.close()
+    }
+
+    private func removeTransientClose() {
+        clickMonitors.forEach { NSEvent.removeMonitor($0) }
+        clickMonitors.removeAll()
+        menuObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        menuObservers.removeAll()
+        isMenuTracking = false
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        guard !isMenuTracking else { return }
+        // Focus can flap for a beat when our own transient popover dismisses
+        // right after Settings opens from it. Don't react instantly — re-check
+        // shortly: if the window didn't regain key, the user really went
+        // elsewhere and Settings closes; if key came back, it stays.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, let window = self.window, window.isVisible else { return }
+            if self.isMenuTracking { return }
+            if window.isKeyWindow { return }
+            if NSApp.keyWindow?.className.contains("Menu") == true { return }
+            self.closeAsTransient()
+        }
+    }
+
     // When Settings closes, slip back to menu-bar-only (no Dock icon).
     func windowWillClose(_ notification: Notification) {
+        removeTransientClose()
         NSApp.setActivationPolicy(.accessory)
     }
 
     deinit {
+        removeTransientClose()
         // Only clear the slot if it still points at us — replacing `current`
         // deallocated this controller, and must not clobber its successor.
         if SettingsWindowController.current === self {

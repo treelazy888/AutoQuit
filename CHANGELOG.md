@@ -1,3 +1,8 @@
+## Version 1.2.1 - 2026-09-05
+
+### Features
+- Settings now behaves like the popover: clicking anywhere outside the Settings window closes it. A local mouse monitor handles clicks inside the app (status item, popover) and `windowDidResignKey` handles clicks that go to other apps. Both hold off while one of the window's own popup menus is open (the language picker), and the resign-key path re-checks after a beat so the focus flap when Settings opens from the popover doesn't immediately close it. Verified live: outside click closes, picker open/select keeps it open, opening from the popover keeps it open.
+
 ## Version 1.2.0 - 2026-09-05
 
 ### Fixes

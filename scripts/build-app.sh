@@ -17,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP="build/AutoQuit.app"
-VERSION="1.2.0"
+VERSION="1.2.1"
 BUILD="1"
 
 echo "==> Cleaning"
