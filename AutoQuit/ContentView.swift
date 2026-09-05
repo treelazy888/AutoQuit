@@ -91,6 +91,16 @@ final class AppLocale: ObservableObject {
     }
 }
 
+extension Color {
+    /// Full-strength text for the popover. Popover materials vibrant-blend
+    /// semantic colors like `.primary` into a washed-out gray, so popover text
+    /// uses an explicit near-black (light mode) / white (dark mode) instead —
+    /// explicit colors render literally, without the vibrant wash.
+    static let popoverText = Color(NSColor(name: "popoverText") { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .white : .black
+    })
+}
+
 // A stable name tag for each app — its hidden bundle id, or its visible name if
 // it has none. We use this to remember an app's settings even after it, or the
 // whole Mac, has restarted.
@@ -1228,7 +1238,7 @@ private struct FooterCommandButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.primary)
+        .foregroundStyle(Color.popoverText)
         .background {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(.regularMaterial)
@@ -1478,7 +1488,7 @@ struct AppRow: View {
         guard willQuit else { return .secondary }
         if secondsLeft <= 300 { return .red }
         if secondsLeft <= 3600 { return .orange }
-        return .secondary
+        return Color.popoverText.opacity(0.6)
     }
 
     private var statusText: String {
@@ -1514,12 +1524,12 @@ struct AppRow: View {
                 Text(displayName)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .foregroundStyle(willQuit ? .primary : .secondary)
+                    .foregroundStyle(willQuit ? AnyShapeStyle(Color.popoverText) : AnyShapeStyle(.secondary))
                 if let total = manager.memoryUsage[app.processIdentifier] {
                     Text(MemoryFormat.short(total))
                         .font(.caption2)
                         .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.popoverText.opacity(0.55))
                         .help(AppLocale.Lf("%@ uses %@ of memory, including helper processes", displayName, MemoryFormat.short(total)))
                 }
             }

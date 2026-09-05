@@ -1,3 +1,8 @@
+## Version 1.2.8 - 2026-09-05
+
+### Changed
+- Popover text renders darker. Popover materials vibrant-blend semantic colors like `.primary` into washed-out gray, so popover text (app names, memory captions, countdown pills, footer) now uses an explicit adaptive near-black/white (`Color.popoverText`) that renders at full strength; secondary info still reads lighter on purpose.
+
 ## Version 1.2.6 - 2026-09-05
 
 ### Changed
