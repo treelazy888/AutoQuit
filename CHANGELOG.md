@@ -1,3 +1,14 @@
+## Version 1.2.0 - 2026-09-05
+
+### Fixes
+- Popover now reliably follows the in-app language, in both directions, verified end-to-end. Two root causes found by live UI testing:
+  - **Double localization**: footer buttons rendered `AppLocale.L()` output wrapped in `LocalizedStringKey`, so SwiftUI looked the already-translated string up in the bundle again by *system* language — an English UI flipped back to Chinese on Chinese-system Macs. `commandButton`, `footerLabel`, `MenuCommandButton`, and `MenuCommandMenu` now take plain Strings and render them verbatim.
+  - **System-locale formatters**: `IdleTime` (durations like "59分钟" vs "59m") and `MemoryFormat` followed the system locale; both now follow the in-app language via the new `AppLocale.locale`.
+
+### Changed
+- The popover is now a native `NSStatusItem` + `NSPopover` (content rebuilt fresh on every show) instead of `MenuBarExtra`, whose cached content view was unreachable by any SwiftUI invalidation while closed — the reason five earlier attempts failed. Also matches the Settings window, which always updated live.
+- `LaunchAtLoginToggle` observes `AppLocale` so its label follows language changes.
+
 ## Version 1.1.8 - 2026-09-04
 
 ### Fixes

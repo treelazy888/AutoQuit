@@ -19,11 +19,9 @@ enum AppDefaults {
     static let hoursUntilClose: Double = 8
 }
 
-// Posted by AppLocale whenever the in-app language changes. MenuBarExtra keeps
-// its popover content alive but hidden while the popover is closed, so SwiftUI
-// observation can't reach the stale strings. The popover's wrapper view
-// (LocalePopover in AutoQuitApp.swift) listens for this notification and
-// re-renders itself — even while hidden.
+// Posted by AppLocale whenever the in-app language changes. Views that stay
+// alive across a change (e.g. the open Settings window) can listen for this to
+// refresh strings that aren't reached by plain SwiftUI observation.
 extension Notification.Name {
     static let appLocaleDidChange = Notification.Name("appLocaleDidChange")
 }
@@ -54,10 +52,8 @@ final class AppLocale: ObservableObject {
                 ? nil
                 : Bundle(path: Bundle.main.path(forResource: language, ofType: "lproj") ?? "")
 
-            // Reach the closed popover: its content window stays alive but
-            // hidden, and MenuBarExtra never re-evaluates the content closure,
-            // so neither scene updates nor (while hidden) objectWillChange get
-            // through. Broadcast instead; LocalePopover forces a re-render.
+            // Reach views that are alive but not observing (e.g. the closed
+            // popover, whose content is rebuilt on show anyway).
             NotificationCenter.default.post(name: .appLocaleDidChange, object: nil)
         }
     }
@@ -73,6 +69,13 @@ final class AppLocale: ObservableObject {
 
     static func current() -> String { shared.language }
 
+    // The Locale matching the in-app language, for formatters (durations,
+    // numbers). Using the system locale here would leak the system language
+    // into the UI — e.g. "57分钟" while the app is set to English.
+    static var locale: Locale {
+        shared.language == "zh-Hans" ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US")
+    }
+
     // Plain key lookup. Falls back to the key itself when the language is
     // English or the .strings file is missing the key.
     static func L(_ key: String) -> String {
@@ -84,7 +87,7 @@ final class AppLocale: ObservableObject {
     // Formatted lookup: pulls the template, then runs it through
     // `String(format:)` with the supplied arguments.
     static func Lf(_ key: String, _ args: CVarArg...) -> String {
-        String(format: L(key), locale: .autoupdatingCurrent, arguments: args)
+        String(format: L(key), locale: locale, arguments: args)
     }
 }
 
@@ -163,7 +166,7 @@ enum PowerDecision {
 enum MemoryFormat {
     private static let mib = 1024.0 * 1024.0
 
-    static func short(_ bytes: Int, locale: Locale = .autoupdatingCurrent) -> String {
+    static func short(_ bytes: Int, locale: Locale = AppLocale.locale) -> String {
         let gib = Double(bytes) / (mib * 1024.0)
         let inGigabytes = gib >= 1
         let value = inGigabytes ? gib : Double(bytes) / mib
@@ -1079,30 +1082,30 @@ struct ContentView: View {
             if #available(macOS 26, *) {
                 GlassEffectContainer(spacing: 6) {
                     VStack(spacing: 6) {
-                        commandButton(LocalizedStringKey(AppLocale.L("Close all selected")), "xmark.circle") { closeSelected(force: false) }
+                        commandButton(AppLocale.L("Close all selected"), "xmark.circle") { closeSelected(force: false) }
                             .disabled(!hasSelection)
-                        commandButton(LocalizedStringKey(AppLocale.L("Force close all selected")), "xmark.octagon", iconColor: .red) { closeSelected(force: true) }
+                        commandButton(AppLocale.L("Force close all selected"), "xmark.octagon", iconColor: .red) { closeSelected(force: true) }
                             .disabled(!hasSelection)
                         pauseMenu
-                        commandButton(LocalizedStringKey(AppLocale.L("Settings")), "gearshape") { SettingsWindowController.show() }
-                        commandButton(LocalizedStringKey(AppLocale.L("Quit AutoQuit")), "power") { NSApplication.shared.terminate(nil) }
+                        commandButton(AppLocale.L("Settings"), "gearshape") { SettingsWindowController.show() }
+                        commandButton(AppLocale.L("Quit AutoQuit"), "power") { NSApplication.shared.terminate(nil) }
                     }
                 }
             } else {
                 VStack(spacing: 2) {
-                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Close all selected")), systemImage: "xmark.circle") {
+                    MenuCommandButton(title: AppLocale.L("Close all selected"), systemImage: "xmark.circle") {
                         closeSelected(force: false)
                     }
                     .disabled(!hasSelection)
-                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Force close all selected")), systemImage: "xmark.octagon", iconColor: .red) {
+                    MenuCommandButton(title: AppLocale.L("Force close all selected"), systemImage: "xmark.octagon", iconColor: .red) {
                         closeSelected(force: true)
                     }
                     .disabled(!hasSelection)
                     pauseMenu
-                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Settings")), systemImage: "gearshape") {
+                    MenuCommandButton(title: AppLocale.L("Settings"), systemImage: "gearshape") {
                         SettingsWindowController.show()
                     }
-                    MenuCommandButton(title: LocalizedStringKey(AppLocale.L("Quit AutoQuit")), systemImage: "power") {
+                    MenuCommandButton(title: AppLocale.L("Quit AutoQuit"), systemImage: "power") {
                         NSApplication.shared.terminate(nil)
                     }
                 }
@@ -1123,13 +1126,13 @@ struct ContentView: View {
             Button {
                 openPauseMenu()
             } label: {
-                footerLabel(LocalizedStringKey(AppLocale.L("Pause auto-quit")), "pause.circle")
+                footerLabel(AppLocale.L("Pause auto-quit"), "pause.circle")
             }
             .buttonStyle(.glass)
             .accessibilityLabel(Text(AppLocale.L("Pause auto-quit")))
             .help(AppLocale.L("Pause auto-quit for a while — nothing is quit until you resume"))
         } else {
-            MenuCommandMenu(title: "Pause auto-quit", systemImage: "pause.circle") {
+            MenuCommandMenu(title: AppLocale.L("Pause auto-quit"), systemImage: "pause.circle") {
                 pauseItems
             }
         }
@@ -1164,10 +1167,13 @@ struct ContentView: View {
 
     /// One row of the footer: icon + title, full width, uniform padding. Shared by
     /// the glass buttons and the "Pause auto-quit" menu so they look identical.
-    private func footerLabel(_ title: LocalizedStringKey, _ systemImage: String,
+    /// The title is a plain String rendered verbatim: a LocalizedStringKey here
+    /// would make SwiftUI look the already-translated string up in the bundle
+    /// again by system language, flipping an English UI back to Chinese.
+    private func footerLabel(_ title: String, _ systemImage: String,
                              iconColor: Color? = nil) -> some View {
         Label {
-            Text(title)
+            Text(verbatim: title)
         } icon: {
             if let iconColor {
                 Image(systemName: systemImage).foregroundStyle(iconColor)
@@ -1182,14 +1188,14 @@ struct ContentView: View {
     }
 
     @available(macOS 26, *)
-    private func commandButton(_ title: LocalizedStringKey, _ systemImage: String,
+    private func commandButton(_ title: String, _ systemImage: String,
                                iconColor: Color? = nil,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
             footerLabel(title, systemImage, iconColor: iconColor)
         }
         .buttonStyle(.glass)
-        .accessibilityLabel(Text(title))
+        .accessibilityLabel(Text(verbatim: title))
     }
 
     private var hasSelection: Bool {
@@ -1217,8 +1223,10 @@ private final class PauseMenuTarget: NSObject {
 }
 
 // A row-style button used in the popover footer on older macOS versions.
+// The title is a plain String rendered verbatim — see footerLabel for why a
+// LocalizedStringKey here would leak the system language into the UI.
 private struct MenuCommandButton: View {
-    let title: LocalizedStringKey
+    let title: String
     let systemImage: String
     var iconColor: Color? = nil
     let action: () -> Void
@@ -1228,7 +1236,7 @@ private struct MenuCommandButton: View {
     var body: some View {
         Button(action: action) {
             Label {
-                Text(title)
+                Text(verbatim: title)
             } icon: {
                 if let iconColor {
                     Image(systemName: systemImage).foregroundStyle(iconColor)
@@ -1253,20 +1261,21 @@ private struct MenuCommandButton: View {
             guard !reduceMotion else { isHovering = hovering; return }
             withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
         }
-        .accessibilityLabel(Text(title))
+        .accessibilityLabel(Text(verbatim: title))
     }
 }
 
 // A row-style Menu for the popover footer on older macOS versions: identical
 // look to MenuCommandButton, so "Pause auto-quit" matches its siblings.
+// Title is a plain String rendered verbatim — see MenuCommandButton.
 private struct MenuCommandMenu<Items: View>: View {
-    let title: LocalizedStringKey
+    let title: String
     let systemImage: String
     let items: Items
     @State private var isHovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(title: LocalizedStringKey, systemImage: String, @ViewBuilder items: () -> Items) {
+    init(title: String, systemImage: String, @ViewBuilder items: () -> Items) {
         self.title = title
         self.systemImage = systemImage
         self.items = items()
@@ -1277,7 +1286,7 @@ private struct MenuCommandMenu<Items: View>: View {
             items
         } label: {
             Label {
-                Text(title)
+                Text(verbatim: title)
             } icon: {
                 Image(systemName: systemImage)
             }
@@ -1612,10 +1621,10 @@ enum IdleTime {
             .units(allowed: [.hours, .minutes], width: width).locale(locale))
     }
 
-    static func short(_ seconds: Int, locale: Locale = .autoupdatingCurrent) -> String {
+    static func short(_ seconds: Int, locale: Locale = AppLocale.locale) -> String {
         format(seconds, width: .narrow, locale: locale)
     }
-    static func verbose(_ seconds: Int, locale: Locale = .autoupdatingCurrent) -> String {
+    static func verbose(_ seconds: Int, locale: Locale = AppLocale.locale) -> String {
         format(seconds, width: .wide, locale: locale)
     }
 }
@@ -1791,6 +1800,8 @@ struct ContentView_Previews: PreviewProvider {
 // starting) AutoQuit automatically when you log in.
 struct LaunchAtLoginToggle: View {
     @State private var isEnabled = SMAppService.mainApp.status == .enabled
+    // Observed so the label re-renders when the in-app language changes.
+    @ObservedObject private var locale = AppLocale.shared
 
     var body: some View {
         Toggle(AppLocale.L("Launch at login"), isOn: Binding(
