@@ -94,6 +94,10 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         if let button = statusItem.button {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             installOutsideClickMonitors()
+            // The popover's window doesn't reliably become key, so tell the
+            // manager directly — it only measures memory while "a window is
+            // open" and would otherwise never measure again after a relaunch.
+            manager.popoverIsOpen = true
         }
     }
 
@@ -135,6 +139,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         lastCloseDate = Date()
         removeOutsideClickMonitors()
+        manager.popoverIsOpen = false
     }
 }
 

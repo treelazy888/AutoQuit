@@ -1,3 +1,13 @@
+## Version 1.3.1 - 2026-09-05
+
+### Fixes
+- Per-app memory usage (e.g. "2 GB" under each name) is back. The manager only measures memory while "a window is open", detected via the key/main window check — and the NSPopover-based popover's window doesn't reliably become key (unlike the old MenuBarExtra window), so after any relaunch memory was never measured again. PopoverController now sets an explicit `popoverIsOpen` flag the manager ORs into that check. Verified via AX: rows report memory values again.
+
+## Version 1.3.0 - 2026-09-05
+
+### Fixes
+- The popover's five footer buttons respond to real mouse clicks again. The hover-highlight tint was drawn in an `.overlay` ABOVE the button — the moment the cursor was over a row (i.e. exactly when clicking) that tint intercepted the click and the action never fired, while accessibility presses (which bypass hit-testing) kept working, which is why it slipped through testing. Both the hover tint and the material pill background now set `.allowsHitTesting(false)`. Verified with real mouse events: Settings opens, Quit quits.
+
 ## Version 1.2.9 - 2026-09-05
 
 ### Fixes

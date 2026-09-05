@@ -223,6 +223,10 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     // True while a window (the popover, or Settings) is on screen. Memory is
     // only re-read then — the footprint scan touches every process on the system.
     private var windowIsOpen = false
+    // Set by PopoverController while the popover is showing. The popover's
+    // window doesn't reliably become key (unlike the old MenuBarExtra window),
+    // so the key-window check alone misses it and memory would never measure.
+    var popoverIsOpen = false
     // Your saved preferences. These survive quitting and reopening the app.
     // Stored as Double so a 30-minute (0.5h) global limit fits alongside whole hours.
     @AppStorage("hoursUntilClose") var hoursUntilClose: Double = AppDefaults.hoursUntilClose
@@ -317,6 +321,7 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             let hasOpenWindow = NSApplication.shared.windows.contains { $0.isKeyWindow || $0.isMainWindow }
+                || self.popoverIsOpen
             self.windowIsOpen = hasOpenWindow
 
             if hasOpenWindow || Date().timeIntervalSince(self.lastChecked) >= 60 {
@@ -1242,11 +1247,18 @@ private struct FooterCommandButton: View {
         .background {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(.regularMaterial)
+                // Decorative — must not swallow the button's clicks.
+                .allowsHitTesting(false)
         }
         .overlay {
             if isHovering {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.primary.opacity(0.08))
+                    // While the cursor is over the row — i.e. exactly when
+                    // clicking — this hover tint sits ABOVE the button.
+                    // Without allowsHitTesting(false) it intercepts the click
+                    // and the action never fires.
+                    .allowsHitTesting(false)
             }
         }
         .opacity(isEnabled ? 1 : 0.45)
