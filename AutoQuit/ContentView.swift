@@ -19,6 +19,15 @@ enum AppDefaults {
     static let hoursUntilClose: Double = 8
 }
 
+// Posted by AppLocale whenever the in-app language changes. MenuBarExtra keeps
+// its popover content alive but hidden while the popover is closed, so SwiftUI
+// observation can't reach the stale strings. The popover's wrapper view
+// (LocalePopover in AutoQuitApp.swift) listens for this notification and
+// re-renders itself — even while hidden.
+extension Notification.Name {
+    static let appLocaleDidChange = Notification.Name("appLocaleDidChange")
+}
+
 // Lets the user pick between English and Simplified Chinese without
 // changing the system language. `Bundle.preferredLocalizations` is read-only
 // in Swift, so we do a manual lookup: open the matching lproj bundle and
@@ -45,22 +54,13 @@ final class AppLocale: ObservableObject {
                 ? nil
                 : Bundle(path: Bundle.main.path(forResource: language, ofType: "lproj") ?? "")
 
-            // MenuBarExtra caches its content closure, so @ObservedObject alone
-            // doesn't reach the closed popover. Briefly remove and re-insert the
-            // menu-bar extra to force the content closure to re-run with fresh
-            // strings. The binding in AutoQuitApp ignores writes from
-            // MenuBarExtra, so this doesn't cause a re-creation loop.
-            isInserted = false
-            DispatchQueue.main.async {
-                self.isInserted = true
-            }
+            // Reach the closed popover: its content window stays alive but
+            // hidden, and MenuBarExtra never re-evaluates the content closure,
+            // so neither scene updates nor (while hidden) objectWillChange get
+            // through. Broadcast instead; LocalePopover forces a re-render.
+            NotificationCenter.default.post(name: .appLocaleDidChange, object: nil)
         }
     }
-
-    // Controls whether the menu-bar extra is visible. Only written by this
-    // class; the binding in AutoQuitApp ignores external writes so MenuBarExtra
-    // can't trigger a re-creation loop.
-    @Published var isInserted = true
 
     private var bundle: Bundle?
 

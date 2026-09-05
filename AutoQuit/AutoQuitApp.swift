@@ -3,6 +3,7 @@
 // almost nothing here on purpose — the real work lives in ContentView.swift.
 
 import SwiftUI
+import Combine
 import AppKit
 
 // The app's single "brain", created once and shared everywhere. It keeps track
@@ -32,30 +33,38 @@ private struct MenuBarLabel: View {
     }
 }
 
+// A thin wrapper around the popover content that forces a re-render when the
+// in-app language changes. MenuBarExtra evaluates its content closure once and
+// keeps the resulting view alive but hidden while the popover is closed, so
+// neither App-scene updates nor (while hidden) objectWillChange reach the stale
+// strings. This wrapper listens for AppLocale's notification and bumps its
+// `.id`, making SwiftUI discard the old content and rebuild it with fresh
+// strings — even while the popover window is hidden.
+private struct LocalePopover: View {
+    @State private var language = AppLocale.shared.language
+    let manager: RunningAppsManager
+
+    var body: some View {
+        ContentView(manager: manager)
+            .id(language)
+            .onReceive(NotificationCenter.default.publisher(for: .appLocaleDidChange)) { _ in
+                language = AppLocale.shared.language
+            }
+    }
+}
+
 // The app itself. It lives only in the menu bar — no Dock icon, no main window.
 @main
 struct AutoQuitApp: App {
-    // Observed so the whole scene re-renders when the user switches language.
-    @ObservedObject private var locale = AppLocale.shared
-
     init() {
         // Prepare the "Keep" / "Quit now" buttons shown on the warning notice.
         runningAppsManager.registerNotifications()
     }
 
     var body: some Scene {
-        // The menu-bar icon; clicking it opens the popover (ContentView).
-        // `isInserted` is toggled off and on when the language changes, so
-        // SwiftUI recreates the menu-bar extra and its cached popover content
-        // with fresh strings. The binding ignores writes from MenuBarExtra so
-        // it can't trigger a re-creation loop.
-        MenuBarExtra(
-            isInserted: Binding(
-                get: { locale.isInserted },
-                set: { _ in }  // ignore MenuBarExtra's writes
-            )
-        ) {
-            ContentView(manager: runningAppsManager)
+        // The menu-bar icon; clicking it opens the popover (LocalePopover).
+        MenuBarExtra {
+            LocalePopover(manager: runningAppsManager)
         } label: {
             MenuBarLabel(manager: runningAppsManager)
         }

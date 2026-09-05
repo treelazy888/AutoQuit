@@ -1,3 +1,8 @@
+## Version 1.1.8 - 2026-09-04
+
+### Fixes
+- Popover text now actually updates when switching language. Root cause of the earlier failures: MenuBarExtra keeps its content view alive but hidden while the popover is closed, and an App struct's `body: some Scene` never re-evaluates on ObservableObject changes — so neither `@ObservedObject` (1.1.3), scene updates, nor the `isInserted` toggle (1.1.6) could reach the closed popover. Now `AppLocale` posts an `appLocaleDidChange` notification on language change, and the popover's wrapper view (`LocalePopover`) listens for it and bumps its `.id`, forcing SwiftUI to rebuild the content with fresh strings even while hidden.
+
 ## Version 1.1.7 - 2026-09-04
 
 ### Fixes
