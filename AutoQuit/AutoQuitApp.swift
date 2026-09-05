@@ -6,6 +6,20 @@ import SwiftUI
 import Combine
 import AppKit
 
+// TEMPORARY debug logging — writes to /tmp/autoquit_debug.log
+func debugLog(_ message: String) {
+    let df = DateFormatter()
+    df.dateFormat = "HH:mm:ss.SSS"
+    let line = df.string(from: Date()) + " " + message + "\n"
+    if let handle = FileHandle(forWritingAtPath: "/tmp/autoquit_debug.log") {
+        handle.seekToEndOfFile()
+        handle.write(line.data(using: .utf8)!)
+        handle.closeFile()
+    } else {
+        try? line.write(toFile: "/tmp/autoquit_debug.log", atomically: true, encoding: .utf8)
+    }
+}
+
 // The app's single "brain", created once and shared everywhere. It keeps track
 // of every running app and decides when to quit the idle ones.
 let runningAppsManager = RunningAppsManager()
@@ -75,11 +89,15 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     @objc private func togglePopover() {
+        debugLog("togglePopover shown=\(popover.isShown)")
         if popover.isShown {
             popover.performClose(nil)
             return
         }
-        if let lastCloseDate, Date().timeIntervalSince(lastCloseDate) < 0.15 { return }
+        if let lastCloseDate, Date().timeIntervalSince(lastCloseDate) < 0.15 {
+            debugLog("togglePopover skipped (reopen guard)")
+            return
+        }
 
         // Rebuild on every show so the strings match the current language.
         // A half-strength window background over NSPopover's default material
@@ -110,11 +128,22 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         outsideClickMonitors.append(NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]
         ) { [weak self] _ in
+            // Global events carry no window — a click on our own status item
+            // also arrives here (win=nil) and must be exempted, or the same
+            // click that toggles the popover would instantly close it. The
+            // click position (bottom-left global coords) tells us where it
+            // actually landed.
+            if let self, let button = self.statusItem.button,
+               let win = button.window,
+               win.frame.contains(NSEvent.mouseLocation) {
+                return
+            }
             self?.dismissForOutsideClick(clickedWindow: nil)
         })
         outsideClickMonitors.append(NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]
         ) { [weak self] event in
+            debugLog("monitor mouseDown win='\(event.window?.title ?? "nil")' class=\(String(describing: type(of: event.window)))")
             self?.dismissForOutsideClick(clickedWindow: event.window)
             return event
         })
@@ -122,12 +151,20 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
     private func dismissForOutsideClick(clickedWindow: NSWindow?) {
         guard popover.isShown else {
+            debugLog("dismiss: popover not shown")
             removeOutsideClickMonitors()
             return
         }
-        if let button = statusItem.button, clickedWindow === button.window { return }
-        if clickedWindow === popover.contentViewController?.view.window { return }
-        if clickedWindow?.className.contains("Menu") == true { return }
+        if let button = statusItem.button, clickedWindow === button.window {
+            debugLog("dismiss: status item, ignore"); return
+        }
+        if clickedWindow === popover.contentViewController?.view.window {
+            debugLog("dismiss: inside popover, ignore"); return
+        }
+        if clickedWindow?.className.contains("Menu") == true {
+            debugLog("dismiss: menu window, ignore"); return
+        }
+        debugLog("dismiss: OUTSIDE (win='\(clickedWindow?.title ?? "nil")') -> close")
         popover.performClose(nil)
     }
 
@@ -137,6 +174,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        debugLog("popoverDidClose")
         lastCloseDate = Date()
         removeOutsideClickMonitors()
         manager.popoverIsOpen = false

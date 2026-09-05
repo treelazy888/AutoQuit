@@ -1,3 +1,8 @@
+## Version 1.3.8 - 2026-09-05
+
+### Fixes
+- Helper rows that belong to another tracked app no longer appear (e.g. "Google Chrome Helper (Renderer)" 2.4GB under "Google Chrome" 2.7GB). Both rows were summing the same process family — the helper's own install tree lives inside the main app's, so its scan matched the whole family too. Apps whose process ids are already covered by a regular app's responsible-process set are now hidden; the main row keeps the family total.
+
 ## Version 1.3.7 - 2026-09-05
 
 ### Changed

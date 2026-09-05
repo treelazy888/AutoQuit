@@ -609,13 +609,21 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
     // Total footprint of every pid responsible for an app, in bytes.
     private func residentMemoryIncludingResponsible(of pid: pid_t, in tree: [pid_t: [pid_t]],
         for app: NSRunningApplication, paths: [pid_t: String], cmdlines: [pid_t: String]) -> Int? {
+        footprintAndResponsible(of: pid, in: tree, for: app, paths: paths, cmdlines: cmdlines).0
+    }
+
+    // The app's footprint plus every responsible process, and the set of those
+    // process ids (used to detect helper processes that belong to this app).
+    private func footprintAndResponsible(of pid: pid_t, in tree: [pid_t: [pid_t]],
+        for app: NSRunningApplication, paths: [pid_t: String], cmdlines: [pid_t: String])
+        -> (Int?, Set<pid_t>) {
         let responsible = responsiblePIDs(for: app, in: tree, paths: paths, cmdlines: cmdlines)
         var total = 0
         var readAny = false
         for child in responsible {
             if let bytes = residentMemory(of: child) { total += bytes; readAny = true }
         }
-        return readAny ? total : nil
+        return (readAny ? total : nil, responsible)
     }
 
     // Finds apps that are actively doing something — playing video or music,
@@ -745,10 +753,34 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
             let paths = processPaths(for: table.allPIDs)
             let cmdlines = processCommandLines()
 
+            // Phase 1: measure every tracked app and remember which processes
+            // each regular app is responsible for (its own helpers included).
+            var measurements: [(app: NSRunningApplication, bytes: Int?, responsible: Set<pid_t>)] = []
             for app in runningApps.keys {
+                let (bytes, responsible) = footprintAndResponsible(of: app.processIdentifier,
+                    in: table.tree, for: app, paths: paths, cmdlines: cmdlines)
+                measurements.append((app, bytes, responsible))
+            }
+
+            // Phase 2: hide helper/component processes that belong to another
+            // tracked app (e.g. "Google Chrome Helper (Renderer)") — their
+            // memory is already counted in that app's row, so showing them
+            // separately would double-count the same bytes twice.
+            let covered = measurements
+                .filter { $0.app.activationPolicy == .regular }
+                .reduce(into: Set<pid_t>()) { $0.formUnion($1.responsible) }
+
+            // Phase 3: apply memory values + Wine naming to the rows that stay.
+            for entry in measurements {
+                let app = entry.app
                 let pid = app.processIdentifier
-                memoryUsage[pid] = residentMemoryIncludingResponsible(of: pid, in: table.tree,
-                    for: app, paths: paths, cmdlines: cmdlines)
+                if app.activationPolicy != .regular && covered.contains(pid) {
+                    runningApps[app] = nil
+                    memoryUsage[pid] = nil
+                    displayNames[pid] = nil
+                    continue
+                }
+                memoryUsage[pid] = entry.bytes
                 // Wine rows all read "wine"; surface the real Windows program
                 // name so the rows can be told apart.
                 if app.localizedName?.lowercased() == "wine", let cl = cmdlines[pid],
