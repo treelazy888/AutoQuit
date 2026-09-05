@@ -1,3 +1,8 @@
+## Version 1.3.9 - 2026-09-05
+
+### Fixes
+- Wine rows no longer all show the same family-total memory. Every process in a Wine family has "wine" in its real path, and the responsible-process prefix walk bottoms out at "/" — so each Wine row lumped the entire family together and showed the identical total (e.g. 984MB × 3, when the real per-process footprints are 292MB / 100MB / 24MB). Wine programs are flat single processes reparented to launchd, so their responsible set is now just the own subtree. Verified against vmmap ground truth.
+
 ## Version 1.3.8 - 2026-09-05
 
 ### Fixes

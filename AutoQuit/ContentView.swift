@@ -577,11 +577,17 @@ class RunningAppsManager: NSObject, ObservableObject, UNUserNotificationCenterDe
                                  paths: [pid_t: String], cmdlines: [pid_t: String]) -> Set<pid_t> {
         var pids = Set(ProcessTree.allPIDs(of: app.processIdentifier, in: tree))
 
-        guard let bundleURL = app.bundleURL,
-              let appName = app.localizedName,
-              appName.count >= 3 else { return pids }
+        let appNameLower = (app.localizedName ?? "").lowercased()
+        // Wine processes: every process in a Wine family has "wine" somewhere
+        // in its real path, and the bundle-prefix walk below bottoms out at
+        // "/". The scan would therefore lump the entire family (services,
+        // winedevice, explorer, every Windows program…) into EACH row — all
+        // showing the same family total. Wine programs are flat single
+        // processes (reparented to launchd), so just count the own subtree.
+        if appNameLower == "wine" { return pids }
 
-        let appNameLower = appName.lowercased()
+        guard let bundleURL = app.bundleURL,
+              (app.localizedName ?? "").count >= 3 else { return pids }
         var dirs = [bundleURL.path]
         var cur = bundleURL
         for _ in 0..<12 {
