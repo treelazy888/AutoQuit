@@ -20,10 +20,9 @@ private final class SMCTemperatureSensor {
     private var ready = false
     // Thermal sensor keys ported from ThermalForge (MIT), verified across
     // M1-M5. Missing keys on a given machine simply return nil and are skipped.
-    private let cpuKeys: [String] = [
-        // aggregate (M5 Max verified)
-        "TCDX", "TCHP", "TCMb",
-        // per-core (Tp prefix, M1-M5)
+    // Per-core sensors only — the row shows their average (iStat's "CPU core
+    // average"); cluster aggregates (TCDX/TCHP/TCMb) would skew it.
+    private let perCoreKeys: [String] = [
         "Tp01", "Tp02", "Tp03", "Tp04", "Tp05", "Tp06", "Tp07", "Tp08",
         "Tp09", "Tp0A", "Tp0B", "Tp0C", "Tp0D", "Tp0F", "Tp0G", "Tp0H",
         "Tp0J", "Tp0L", "Tp0P", "Tp0S", "Tp0T", "Tp0W", "Tp0X", "Tp0b",
@@ -144,6 +143,23 @@ private final class SMCTemperatureSensor {
         return nil
     }
 
+    private func average(_ keys: [String]) -> Double? {
+        guard ready else { return nil }
+        var sum: Double = 0
+        var count = 0
+        for key in keys {
+            if let v = value(key), (10...125).contains(v) {
+                sum += v; count += 1
+            }
+        }
+        return count > 0 ? sum / Double(count) : nil
+    }
+
+    // CPU core average — the mean over the readable per-core sensors.
+    func cpuTemperature() -> Double? { average(perCoreKeys) }
+    // Peak GPU temperature.
+    func gpuTemperature() -> Double? { peak(gpuKeys) }
+
     private func peak(_ keys: [String]) -> Double? {
         guard ready else { return nil }
         var best: Double?
@@ -154,11 +170,6 @@ private final class SMCTemperatureSensor {
         }
         return best
     }
-
-    // Peak CPU temperature across the aggregate + per-core + hex-sweep sensors.
-    func cpuTemperature() -> Double? { peak(cpuKeys) }
-    // Peak GPU temperature.
-    func gpuTemperature() -> Double? { peak(gpuKeys) }
 }
 
 // Live CPU/memory readings for the menu-bar text. Refreshed every 2 seconds.
@@ -298,7 +309,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private let manager: RunningAppsManager
     private let stats = SystemStats()
     private let popover = NSPopover()
-    private let statusItem = NSStatusBar.system.statusItem(withLength: 104)
+    private let statusItem = NSStatusBar.system.statusItem(withLength: 124)
     private var statsView: MenuBarStatsNSView?
     private var cancellables = Set<AnyCancellable>()
 
@@ -359,9 +370,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             return
         }
         button.image = nil
-        statusItem.length = 104
+        statusItem.length = 124
         if statsView == nil {
-            let view = MenuBarStatsNSView(frame: NSRect(x: 0, y: 0, width: 104, height: 24))
+            let view = MenuBarStatsNSView(frame: NSRect(x: 0, y: 0, width: 124, height: 24))
             view.autoresizingMask = [.width, .height]
             view.onToggle = { [weak self] in self?.togglePopover() }
             button.addSubview(view)

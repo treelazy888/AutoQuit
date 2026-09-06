@@ -1,3 +1,9 @@
+## Version 1.4.6 - 2026-09-05
+
+### Changed
+- CPU temperature now shows the **CPU core average** (the mean over the readable per-core Tp sensors, matching iStat Menus' "CPU core average") instead of the peak. Cluster aggregates (TCDX/TCHP/TCMb) are excluded from the average so they don't skew it.
+- The menu bar panel widened (124pt) — the GPU column no longer truncates.
+
 ## Version 1.4.5 - 2026-09-05
 
 ### Fixes
