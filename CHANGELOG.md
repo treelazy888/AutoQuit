@@ -4,6 +4,12 @@
 - **Three separate menu-bar tiles instead of one combined panel**: `CPU 61°` `MEM 29%` `GPU 51°` — each tile shows its label on top and its live value below (refreshed every 2s). Clicking any tile toggles the popover.
 - While auto-quit is paused, the MEM/GPU tiles collapse and the CPU tile swaps to the pause glyph, so the stand-down state stays visible without three identical pause icons.
 
+## Version 1.5.4 - 2026-09-06
+
+### Fixes
+- The popover anchor is back at the **MEM tile** — the 1.5.3 fix was lost when the three-tile rewrite landed (the anchor had reverted to the CPU tile).
+- CPU temperature is now smoothed (exponential moving average, 30% of each new reading) so it no longer jumps between refreshes; it still reflects the all-core average.
+
 ## Version 1.5.3 - 2026-09-06
 
 ### Changed

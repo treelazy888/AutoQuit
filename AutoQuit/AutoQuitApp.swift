@@ -52,6 +52,7 @@ final class MenuBarStatItemView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
+
 private final class SMCTemperatureSensor {
     static let shared = SMCTemperatureSensor()
     private var conn: io_connect_t = 0
@@ -206,6 +207,9 @@ final class SystemStats: ObservableObject {
     @Published var memoryPressure = 0
     @Published var cpuTemperature: Double?
     @Published var gpuTemperature: Double?
+    // Exponential smoothing so the displayed temperature doesn't jump between
+    // refreshes; 0.3 = 30% of the new reading per tick.
+    private var smoothedCpuTemp: Double?
     private var prevUser: UInt32 = 0
     private var prevSys: UInt32 = 0
     private var prevIdle: UInt32 = 0
@@ -223,8 +227,13 @@ final class SystemStats: ObservableObject {
     deinit { timer?.invalidate() }
 
     func refresh() {
-        // CPU/GPU temperature: peak of the readable sensors per domain.
-        cpuTemperature = SMCTemperatureSensor.shared.cpuTemperature()
+        // CPU/GPU temperature: the CPU side is the per-core average, smoothed
+        // over refreshes so it doesn't jump around; GPU is the peak sensor.
+        if let t = SMCTemperatureSensor.shared.cpuTemperature() {
+            smoothedCpuTemp = smoothedCpuTemp == nil
+                ? t : smoothedCpuTemp! * 0.7 + t * 0.3
+        }
+        cpuTemperature = smoothedCpuTemp
         gpuTemperature = SMCTemperatureSensor.shared.gpuTemperature()
 
         // CPU usage: ticks since the last refresh, all cores pooled.
@@ -391,7 +400,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         controller.sizingOptions = .preferredContentSize
         popover.contentViewController = controller
 
-        if let button = cpuItem.button {
+        // The popover pops up anchored at the MEM tile (the middle one).
+        if let button = memItem.button {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             installOutsideClickMonitors()
             // The popover's window doesn't reliably become key, so tell the
