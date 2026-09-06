@@ -1,3 +1,8 @@
+## Version 1.4.5 - 2026-09-05
+
+### Fixes
+- CPU/GPU temperature readouts returned nil again after the key-list expansion: the SMC type string's byte order varies (a 4-char code stored little-endian reads back reversed — "sp78" as "87ps", "flt " as " tlf"), so the literal switch missed every sensor. Type matching is now by character set (order-independent), with a plausible-range filter (10-150°C). Verified live: CPU peak 67.3°C, GPU peak 54.7°C.
+
 ## Version 1.4.4 - 2026-09-05
 
 ### Features

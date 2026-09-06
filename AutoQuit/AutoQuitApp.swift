@@ -115,19 +115,33 @@ private final class SMCTemperatureSensor {
 
     private func value(_ key: String) -> Double? {
         guard let (bytes, type) = readKey(key) else { return nil }
-        switch type {
-        case "sp78", "sp87":
-            let raw = Int16(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
-            return Double(raw) / 256.0
-        case "flt ":
+        return Self.decodeTemp(bytes: bytes, type: type)
+    }
+
+    // Decode a sensor value. The type string's byte order varies (a 4-char code
+    // stored little-endian reads back reversed — "sp78" as "87ps", "flt " as
+    // " tlf"), so match by character SET, not by literal.
+    static func decodeTemp(bytes: [UInt8], type: String) -> Double? {
+        let chars = Set(type)
+        if chars == Set("sp78") || chars == Set("sp87") {
+            return Double(Int16(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))) / 256.0
+        }
+        if chars == Set("flt ") {
             var f: Float = 0
             withUnsafeMutableBytes(of: &f) { dst in
                 for i in 0..<4 { dst[i] = bytes[i] }
             }
-            return Double(f)
-        case "ui8 ": return Double(bytes[0])
-        default: return nil
+            return (0...150).contains(Double(f)) ? Double(f) : nil
         }
+        if chars == Set("ui8 ") { return Double(bytes[0]) }
+        if chars == Set("ioft") {
+            // 8-byte IOKit fixed point: first 4 bytes = 16.16 little-endian
+            let raw = UInt32(bytes[0]) | (UInt32(bytes[1]) << 8)
+                | (UInt32(bytes[2]) << 16) | (UInt32(bytes[3]) << 24)
+            let v = Double(raw >> 16) + Double(raw & 0xFFFF) / 65536.0
+            return (0...150).contains(v) ? v : nil
+        }
+        return nil
     }
 
     private func peak(_ keys: [String]) -> Double? {
