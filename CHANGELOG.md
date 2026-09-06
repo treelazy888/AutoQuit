@@ -1,3 +1,8 @@
+## Version 1.4.1 - 2026-09-05
+
+### Fixes
+- MEM percentage now uses the system's own memory-pressure metric (`kern.memorystatus_level`, the same number Apple's `memory_pressure` tool prints as "free percentage") instead of a rough used-RAM estimate — 28% instead of the misleading 60-78%, and it tracks how macOS itself gauges pressure.
+
 ## Version 1.4.0 - 2026-09-05
 
 ### Features

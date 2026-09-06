@@ -61,23 +61,20 @@ final class SystemStats: ObservableObject {
             vm_deallocate(mach_task_self_, vm_address_t(bitPattern: ticks), size)
         }
 
-        // Memory pressure: share of RAM in active use (total minus free and
-        // cached-inactive pages), matching the "memory used" reading.
-        var stats = vm_statistics64()
-        var pageCount = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
-        let memResult = withUnsafeMutablePointer(to: &stats) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(pageCount)) {
-                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &pageCount)
+        // Memory pressure: the system's own metric — kern.memorystatus_level
+        // (0-100, the "free" share Apple's memory_pressure tool prints), so the
+        // percentage matches what macOS itself reports. Pressure = 100 - level.
+        var level: Int32 = -1
+        var levelSize: Int = 0
+        if sysctlbyname("kern.memorystatus_level", nil, &levelSize, nil, 0) == 0, levelSize >= 4 {
+            let buffer = UnsafeMutableRawPointer.allocate(byteCount: levelSize, alignment: 4)
+            defer { buffer.deallocate() }
+            if sysctlbyname("kern.memorystatus_level", buffer, &levelSize, nil, 0) == 0 {
+                level = buffer.assumingMemoryBound(to: Int32.self).pointee
             }
         }
-        if memResult == KERN_SUCCESS {
-            var pageSize: vm_size_t = 0
-            host_page_size(mach_host_self(), &pageSize)
-            let total = ProcessInfo.processInfo.physicalMemory
-            let free = UInt64(stats.free_count) * UInt64(pageSize)
-            let inactive = UInt64(stats.inactive_count) * UInt64(pageSize)
-            let used = Int(total) - Int(free + inactive)
-            memoryPressure = max(0, min(100, used * 100 / Int(total)))
+        if level >= 0 {
+            memoryPressure = max(0, min(100, 100 - Int(level)))
         }
     }
 }
