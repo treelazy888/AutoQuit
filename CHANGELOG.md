@@ -1,3 +1,9 @@
+## Version 1.5.0 - 2026-09-05
+
+### Features
+- **Three separate menu-bar tiles instead of one combined panel**: `CPU 61°` `MEM 29%` `GPU 51°` — each tile shows its label on top and its live value below (refreshed every 2s). Clicking any tile toggles the popover.
+- While auto-quit is paused, the MEM/GPU tiles collapse and the CPU tile swaps to the pause glyph, so the stand-down state stays visible without three identical pause icons.
+
 ## Version 1.4.6 - 2026-09-05
 
 ### Changed

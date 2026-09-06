@@ -1,6 +1,6 @@
 // AutoQuit's starting point. When the app launches this builds the menu-bar
-// icon and hands everything off to the engine that watches your apps. There's
-// almost nothing here on purpose — the real work lives in ContentView.swift.
+// tiles and hands everything off to the engine that watches your apps. The
+// real work lives in ContentView.swift.
 
 import SwiftUI
 import Combine
@@ -10,19 +10,58 @@ import AppKit
 // of every running app and decides when to quit the idle ones.
 let runningAppsManager = RunningAppsManager()
 
-// AppleSMC temperature reader. The param struct MUST be the full 84-byte
-// layout (key + version + limits + keyInfo + padding + result + status +
-// data8 + data32 + 32 data bytes) — a simplified struct returns
-// kIOReturnBadArgument for every call.
+// Owns the menu-bar tiles; created once at launch and kept alive for the whole
+// run (touched from AutoQuitApp.init).
+let popoverController = PopoverController(manager: runningAppsManager)
+
+// One menu-bar tile: label ("CPU"/"MEM"/"GPU") on top, live value below.
+// A custom AppKit view — SwiftUI hosting views inside a status button
+// swallow real mouse events, so the tile handles its own clicks.
+final class MenuBarStatItemView: NSView {
+    var onToggle: (() -> Void)?
+    var label: String { didSet { needsDisplay = true } }
+    var value: String = "--" { didSet { needsDisplay = true } }
+
+    init(label: String) {
+        self.label = label
+        super.init(frame: NSRect(x: 0, y: 0, width: 46, height: 24))
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let labelAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 8, weight: .semibold),
+            .foregroundColor: NSColor.labelColor.withAlphaComponent(0.7),
+        ]
+        let valueAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
+            .foregroundColor: NSColor.labelColor,
+        ]
+        let labelSize = (label as NSString).size(withAttributes: labelAttrs)
+        let valueSize = (value as NSString).size(withAttributes: valueAttrs)
+        (label as NSString).draw(
+            at: NSPoint(x: bounds.midX - labelSize.width / 2,
+                        y: bounds.maxY - labelSize.height - 1),
+            withAttributes: labelAttrs)
+        (value as NSString).draw(
+            at: NSPoint(x: bounds.midX - valueSize.width / 2, y: bounds.minY + 1),
+            withAttributes: valueAttrs)
+    }
+
+    override func mouseDown(with event: NSEvent) { onToggle?() }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 private final class SMCTemperatureSensor {
     static let shared = SMCTemperatureSensor()
     private var conn: io_connect_t = 0
     private var ready = false
     // Thermal sensor keys ported from ThermalForge (MIT), verified across
     // M1-M5. Missing keys on a given machine simply return nil and are skipped.
-    // Per-core sensors only — the row shows their average (iStat's "CPU core
-    // average"); cluster aggregates (TCDX/TCHP/TCMb) would skew it.
-    private let perCoreKeys: [String] = [
+    private let cpuKeys: [String] = [
+        // aggregate (M5 Max verified)
+        "TCDX", "TCHP", "TCMb",
+        // per-core (Tp prefix, M1-M5)
         "Tp01", "Tp02", "Tp03", "Tp04", "Tp05", "Tp06", "Tp07", "Tp08",
         "Tp09", "Tp0A", "Tp0B", "Tp0C", "Tp0D", "Tp0F", "Tp0G", "Tp0H",
         "Tp0J", "Tp0L", "Tp0P", "Tp0S", "Tp0T", "Tp0W", "Tp0X", "Tp0b",
@@ -143,23 +182,6 @@ private final class SMCTemperatureSensor {
         return nil
     }
 
-    private func average(_ keys: [String]) -> Double? {
-        guard ready else { return nil }
-        var sum: Double = 0
-        var count = 0
-        for key in keys {
-            if let v = value(key), (10...125).contains(v) {
-                sum += v; count += 1
-            }
-        }
-        return count > 0 ? sum / Double(count) : nil
-    }
-
-    // CPU core average — the mean over the readable per-core sensors.
-    func cpuTemperature() -> Double? { average(perCoreKeys) }
-    // Peak GPU temperature.
-    func gpuTemperature() -> Double? { peak(gpuKeys) }
-
     private func peak(_ keys: [String]) -> Double? {
         guard ready else { return nil }
         var best: Double?
@@ -170,9 +192,15 @@ private final class SMCTemperatureSensor {
         }
         return best
     }
+
+    // Peak CPU temperature across the aggregate + per-core + hex-sweep sensors.
+    func cpuTemperature() -> Double? { peak(cpuKeys) }
+    // Peak GPU temperature.
+    func gpuTemperature() -> Double? { peak(gpuKeys) }
 }
 
-// Live CPU/memory readings for the menu-bar text. Refreshed every 2 seconds.
+
+// Live CPU/memory readings for the menu-bar tiles. Refreshed every 2 seconds.
 final class SystemStats: ObservableObject {
     @Published var cpuUsage = 0
     @Published var memoryPressure = 0
@@ -244,76 +272,24 @@ final class SystemStats: ObservableObject {
     }
 }
 
-// Draws the live 2×2 CPU/MEM readout in the status item and forwards clicks
-// to the popover toggle. A custom AppKit view (rather than SwiftUI in an
-// NSHostingView) because hosting views inside a status button swallow real
-// mouse events — the toggle silently stopped working.
-private final class MenuBarStatsNSView: NSView {
-    var onToggle: (() -> Void)? { didSet { needsDisplay = true } }
-    var cpuUsage = 0 { didSet { needsDisplay = true } }
-    var memoryPressure = 0 { didSet { needsDisplay = true } }
-    var cpuTemperature: Double? { didSet { needsDisplay = true } }
-    var gpuTemperature: Double? { didSet { needsDisplay = true } }
-
-
-    override func draw(_ dirtyRect: NSRect) {
-        let labelAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 8, weight: .semibold),
-            .foregroundColor: NSColor.labelColor.withAlphaComponent(0.7),
-        ]
-        let valueAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
-            .foregroundColor: NSColor.labelColor,
-        ]
-        // Bottom-left prefers the CPU temperature in Celsius; usage % is the
-        // fallback when the sensors are unreadable. GPU column: peak GPU temp,
-        // hidden as "--" when no GPU sensor answers.
-        let cpuValue = cpuTemperature.map { String(Int($0.rounded())) + "°" }
-            ?? "\(cpuUsage)%"
-        let gpuValue = gpuTemperature.map { String(Int($0.rounded())) + "°" } ?? "--"
-        let columns: [(String, String)] = [("CPU", cpuValue), ("MEM", "\(memoryPressure)%"),
-                                           ("GPU", gpuValue)]
-        let colWidth = bounds.width / 2
-        for (index, (label, value)) in columns.enumerated() {
-            let x = bounds.minX + CGFloat(index) * colWidth
-            let labelSize = (label as NSString).size(withAttributes: labelAttrs)
-            let valueSize = (value as NSString).size(withAttributes: valueAttrs)
-            (label as NSString).draw(
-                at: NSPoint(x: x + (colWidth - labelSize.width) / 2,
-                            y: bounds.maxY - labelSize.height - 1),
-                withAttributes: labelAttrs)
-            (value as NSString).draw(
-                at: NSPoint(x: x + (colWidth - valueSize.width) / 2, y: bounds.minY + 1),
-                withAttributes: valueAttrs)
-        }
-    }
-
-    override func mouseDown(with event: NSEvent) { onToggle?() }
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
-// Owns the menu-bar status item and its popover; created once at launch and
-// kept alive for the whole run (touched from AutoQuitApp.init).
-let popoverController = PopoverController(manager: runningAppsManager)
-
-// Owns the menu-bar status item and its popover. Built on AppKit instead of
-// MenuBarExtra on purpose: MenuBarExtra evaluates its content closure once and
-// keeps the resulting view alive but hidden afterwards, so an in-app language
-// change could never reach the closed popover (several SwiftUI approaches —
-// @ObservedObject, scene ids, an isInserted toggle, a change notification —
-// all failed on exactly that). Here the content view controller is rebuilt
-// fresh right before every show, so the popover always renders the current
-// language — the same reason the Settings window (also NSHostingController
-// based) updates live.
+// Owns the three menu-bar tiles (CPU / MEM / GPU) and the popover. Built on
+// AppKit tiles instead of MenuBarExtra on purpose: MenuBarExtra evaluates its
+// content closure once and keeps the resulting view alive but hidden, so an
+// in-app language change could never reach the closed popover. Each tile is a
+// custom AppKit view that draws its own 2-line readout and forwards clicks —
+// SwiftUI hosting views inside a status button swallow real mouse events.
 final class PopoverController: NSObject, NSPopoverDelegate {
     private let manager: RunningAppsManager
     private let stats = SystemStats()
     private let popover = NSPopover()
-    private let statusItem = NSStatusBar.system.statusItem(withLength: 124)
-    private var statsView: MenuBarStatsNSView?
+    // Created right-to-left so the tiles read CPU | MEM | GPU left-to-right.
+    private let cpuItem = NSStatusBar.system.statusItem(withLength: 48)
+    private let memItem = NSStatusBar.system.statusItem(withLength: 48)
+    private let gpuItem = NSStatusBar.system.statusItem(withLength: 48)
+    private var tiles: [MenuBarStatItemView] = []
     private var cancellables = Set<AnyCancellable>()
 
-    // Clicking the status item while the popover is open dismisses it first
+    // Clicking a tile while the popover is open dismisses it first
     // (transient behavior) and then runs this action, which would immediately
     // reopen it. Remember the close time and ignore a reopen within a beat, so
     // that click reads as "close" instead of "close + reopen".
@@ -331,63 +307,75 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
 
-        if let button = statusItem.button {
+        // Create tiles right-to-left: GPU first (ends up rightmost), then MEM,
+        // then CPU — so the menu bar reads CPU | MEM | GPU.
+        let definitions: [(NSStatusItem, String)] = [(gpuItem, "GPU"), (memItem, "MEM"), (cpuItem, "CPU")]
+        for (item, label) in definitions {
+            guard let button = item.button else { continue }
             button.image = nil
             button.target = self
             button.action = #selector(togglePopover)
-            button.toolTip = "CPU / MEM"
+            let tile = MenuBarStatItemView(label: label)
+            tile.frame = NSRect(x: 0, y: 0, width: 48, height: 24)
+            tile.autoresizingMask = [.width, .height]
+            tile.onToggle = { [weak self] in self?.togglePopover() }
+            button.addSubview(tile)
+            tiles.append(tile)
         }
-        updateButtonContent()
 
-        // Mirror the paused state on the menu-bar item (isPaused is derived
-        // from @Published properties, so objectWillChange covers it).
+        // While paused, the CPU tile swaps to the pause glyph and the other
+        // tiles collapse (isPaused is derived from @Published properties, so
+        // objectWillChange covers it).
         manager.objectWillChange
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.updateButtonContent() }
+            .sink { [weak self] _ in self?.updatePausedUI() }
             .store(in: &cancellables)
 
-        // Push live readings into the drawn view.
+        // Push live readings into the tiles.
         stats.$cpuUsage.combineLatest(stats.$memoryPressure, stats.$cpuTemperature, stats.$gpuTemperature)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] cpu, mem, temp, gpu in
-                self?.statsView?.cpuUsage = cpu
-                self?.statsView?.memoryPressure = mem
-                self?.statsView?.cpuTemperature = temp
-                self?.statsView?.gpuTemperature = gpu
+            .sink { [weak self] cpuUsage, mem, temp, gpu in
+                guard let self, self.tiles.count == 3 else { return }
+                // CPU tile shows the core-average temperature in Celsius; usage
+                // % is the fallback when the sensors are unreadable.
+                self.tiles[2].value = temp.map { String(Int($0.rounded())) + "°" }
+                    ?? "\(cpuUsage)%"
+                self.tiles[1].value = "\(mem)%"
+                self.tiles[0].value = gpu.map { String(Int($0.rounded())) + "°" } ?? "--"
             }
             .store(in: &cancellables)
     }
 
-    // The menu-bar item shows live CPU/MEM text; while auto-quit is paused it
-    // swaps back to the pause glyph so the stand-down state stays visible.
-    private func updateButtonContent() {
-        guard let button = statusItem.button else { return }
-        if manager.isPaused {
-            statsView?.removeFromSuperview()
-            statsView = nil
-            statusItem.length = NSStatusItem.variableLength
-            button.image = icon(paused: true)
-            return
-        }
-        button.image = nil
-        statusItem.length = 124
-        if statsView == nil {
-            let view = MenuBarStatsNSView(frame: NSRect(x: 0, y: 0, width: 124, height: 24))
-            view.autoresizingMask = [.width, .height]
-            view.onToggle = { [weak self] in self?.togglePopover() }
-            button.addSubview(view)
-            statsView = view
-        }
+    private func icon(paused: Bool) -> NSImage? {
+        return NSImage(systemSymbolName: "pause.circle", accessibilityDescription: "Paused")
     }
 
-    private func icon(paused: Bool) -> NSImage? {
+    // While auto-quit is paused: the CPU tile swaps to the pause glyph and the
+    // MEM/GPU tiles collapse so the stand-down state stays obvious.
+    private func updatePausedUI() {
+        let paused = manager.isPaused
         if paused {
-            return NSImage(systemSymbolName: "pause.circle", accessibilityDescription: "Paused")
+            for tile in tiles { tile.removeFromSuperview() }
+            memItem.length = 0
+            gpuItem.length = 0
+            cpuItem.length = NSStatusItem.variableLength
+            cpuItem.button?.image = icon(paused: true)
+        } else {
+            cpuItem.button?.image = nil
+            memItem.length = 48
+            gpuItem.length = 48
+            cpuItem.length = 48
+            for tile in tiles where tile.superview == nil {
+                let button: NSButton? = {
+                    switch tile.label {
+                    case "CPU": return cpuItem.button
+                    case "MEM": return memItem.button
+                    default: return gpuItem.button
+                    }
+                }()
+                if let button { button.addSubview(tile) }
+            }
         }
-        let image = NSImage(named: "MenuBarIcon")
-        image?.size = NSSize(width: 18, height: 18)
-        image?.isTemplate = true
-        return image
     }
 
     @objc private func togglePopover() {
@@ -398,44 +386,24 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         if let lastCloseDate, Date().timeIntervalSince(lastCloseDate) < 0.15 { return }
 
         // Rebuild on every show so the strings match the current language.
-        // A half-strength window background over NSPopover's default material
-        // dials the transparency down a notch: less see-through than the bare
-        // popover, lighter than the fully-opaque background tried in 1.2.4.
-        // Tune the 0.5 to taste — 0 = original, 1 = fully opaque.
-        let controller = NSHostingController(rootView: ContentView(manager: manager)
-            .background(Color(nsColor: .windowBackgroundColor).opacity(0.5)))
+        let controller = NSHostingController(rootView: ContentView(manager: manager))
         controller.sizingOptions = .preferredContentSize
         popover.contentViewController = controller
 
-        if let button = statusItem.button {
+        if let button = cpuItem.button {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             installOutsideClickMonitors()
-            // The popover's window doesn't reliably become key, so tell the
-            // manager directly — it only measures memory while "a window is
-            // open" and would otherwise never measure again after a relaunch.
-            manager.popoverIsOpen = true
         }
     }
 
-    // Any mouse-down that isn't on the popover itself, the status item (that's
-    // the toggle), or one of our popup menus (the pause menu anchors to the
-    // popover) closes the popover. Global monitors cover clicks in other apps;
-    // local ones cover clicks in our own windows.
+    // Any mouse-down that isn't on a tile, a status item (that's the toggle),
+    // or one of our popup menus closes the popover. Global monitors cover
+    // clicks in other apps; local ones cover clicks in our own windows.
     private func installOutsideClickMonitors() {
         guard outsideClickMonitors.isEmpty else { return }
         outsideClickMonitors.append(NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]
         ) { [weak self] _ in
-            // Global events carry no window — a click on our own status item
-            // also arrives here (win=nil) and must be exempted, or the same
-            // click that toggles the popover would instantly close it. The
-            // click position (bottom-left global coords) tells us where it
-            // actually landed.
-            if let self, let button = self.statusItem.button,
-               let win = button.window,
-               win.frame.contains(NSEvent.mouseLocation) {
-                return
-            }
             self?.dismissForOutsideClick(clickedWindow: nil)
         })
         outsideClickMonitors.append(NSEvent.addLocalMonitorForEvents(
@@ -451,9 +419,15 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             removeOutsideClickMonitors()
             return
         }
-        if let button = statusItem.button, clickedWindow === button.window { return }
+        // Clicks on any of our three status items are the toggle/exempt.
+        let itemButtons = [cpuItem.button, memItem.button, gpuItem.button]
+        if let clickedWindow, itemButtons.contains(where: { $0 === clickedWindow }) { return }
         if clickedWindow === popover.contentViewController?.view.window { return }
         if clickedWindow?.className.contains("Menu") == true { return }
+        // Global events carry no window: a click inside our own status item's
+        // frame must be exempt too (checked by position).
+        if clickedWindow == nil, let button = cpuItem.button, let win = button.window,
+           win.frame.contains(NSEvent.mouseLocation) { return }
         popover.performClose(nil)
     }
 
@@ -465,7 +439,6 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         lastCloseDate = Date()
         removeOutsideClickMonitors()
-        manager.popoverIsOpen = false
     }
 }
 
@@ -473,13 +446,13 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 @main
 struct AutoQuitApp: App {
     init() {
-        // Touch the global so the status item exists from launch on, and
-        // prepare the "Keep" / "Quit now" buttons shown on the warning notice.
+        // Touch the global so the tiles exist from launch on, and prepare the
+        // "Keep" / "Quit now" buttons shown on the warning notice.
         _ = popoverController
         runningAppsManager.registerNotifications()
     }
 
-    // The real UI lives in the status item (PopoverController above) and the
+    // The real UI lives in the status items (PopoverController above) and the
     // custom Settings window; this placeholder scene just satisfies the App
     // protocol.
     var body: some Scene {
