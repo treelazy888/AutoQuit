@@ -1,3 +1,8 @@
+## Version 1.4.4 - 2026-09-05
+
+### Features
+- **GPU temperature column added to the menu bar readout** — now `CPU / MEM / GPU` three columns. Sensor keys ported from ThermalForge (MIT), verified across M1-M5: CPU aggregate + per-core + hex-sweep (TC*/Tp*), GPU (Tg*/TG*), plus ioft (M5) decoding. Missing keys on a given machine are skipped automatically. Panel widened to fit the third column.
+
 ## Version 1.4.3 - 2026-09-05
 
 ### Fixes

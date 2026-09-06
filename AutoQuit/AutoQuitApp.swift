@@ -18,12 +18,18 @@ private final class SMCTemperatureSensor {
     static let shared = SMCTemperatureSensor()
     private var conn: io_connect_t = 0
     private var ready = false
-    // All CPU-cluster temperature sensors (Apple Silicon Tp00-Tp1F + Intel
-    // fallback). The hot die peak (e.g. Tp0E) sits ~10C above the mid-cluster
-    // sensors — reading only a few keys underreports by exactly that.
-    private var keys: [String] {
-        (0...31).map { String(format: "Tp%02X", $0) } + ["TC0P"]
-    }
+    // Thermal sensor keys ported from ThermalForge (MIT), verified across
+    // M1-M5. Missing keys on a given machine simply return nil and are skipped.
+    private let cpuKeys: [String] = [
+        // aggregate (M5 Max verified)
+        "TCDX", "TCHP", "TCMb",
+        // per-core (Tp prefix, M1-M5)
+        "Tp01", "Tp02", "Tp03", "Tp04", "Tp05", "Tp06", "Tp07", "Tp08",
+        "Tp09", "Tp0A", "Tp0B", "Tp0C", "Tp0D", "Tp0F", "Tp0G", "Tp0H",
+        "Tp0J", "Tp0L", "Tp0P", "Tp0S", "Tp0T", "Tp0W", "Tp0X", "Tp0b",
+    ] + (0...31).map { String(format: "Tp%02X", $0) }
+    private let gpuKeys = ["Tg05", "Tg0D", "Tg0L", "Tg0T", "Tg0f", "Tg0j",
+                           "TG0B", "TG0H", "TG0V"]
 
     struct SMCKeyData_t {
         typealias SMCBytes_t = (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
@@ -124,17 +130,21 @@ private final class SMCTemperatureSensor {
         }
     }
 
-    // Peak CPU-core temperature across the readable sensors (25-120°C plausible).
-    func cpuTemperature() -> Double? {
+    private func peak(_ keys: [String]) -> Double? {
         guard ready else { return nil }
         var best: Double?
         for key in keys {
-            if let v = value(key), (25...120).contains(v) {
+            if let v = value(key), (10...125).contains(v) {
                 best = max(best ?? 0, v)
             }
         }
         return best
     }
+
+    // Peak CPU temperature across the aggregate + per-core + hex-sweep sensors.
+    func cpuTemperature() -> Double? { peak(cpuKeys) }
+    // Peak GPU temperature.
+    func gpuTemperature() -> Double? { peak(gpuKeys) }
 }
 
 // Live CPU/memory readings for the menu-bar text. Refreshed every 2 seconds.
@@ -142,6 +152,7 @@ final class SystemStats: ObservableObject {
     @Published var cpuUsage = 0
     @Published var memoryPressure = 0
     @Published var cpuTemperature: Double?
+    @Published var gpuTemperature: Double?
     private var prevUser: UInt32 = 0
     private var prevSys: UInt32 = 0
     private var prevIdle: UInt32 = 0
@@ -159,8 +170,9 @@ final class SystemStats: ObservableObject {
     deinit { timer?.invalidate() }
 
     func refresh() {
-        // CPU temperature: peak of the readable CPU-core sensors.
+        // CPU/GPU temperature: peak of the readable sensors per domain.
         cpuTemperature = SMCTemperatureSensor.shared.cpuTemperature()
+        gpuTemperature = SMCTemperatureSensor.shared.gpuTemperature()
 
         // CPU usage: ticks since the last refresh, all cores pooled.
         var countIn: mach_msg_type_number_t = 0
@@ -216,6 +228,7 @@ private final class MenuBarStatsNSView: NSView {
     var cpuUsage = 0 { didSet { needsDisplay = true } }
     var memoryPressure = 0 { didSet { needsDisplay = true } }
     var cpuTemperature: Double? { didSet { needsDisplay = true } }
+    var gpuTemperature: Double? { didSet { needsDisplay = true } }
 
 
     override func draw(_ dirtyRect: NSRect) {
@@ -228,10 +241,13 @@ private final class MenuBarStatsNSView: NSView {
             .foregroundColor: NSColor.labelColor,
         ]
         // Bottom-left prefers the CPU temperature in Celsius; usage % is the
-        // fallback when the sensors are unreadable.
+        // fallback when the sensors are unreadable. GPU column: peak GPU temp,
+        // hidden as "--" when no GPU sensor answers.
         let cpuValue = cpuTemperature.map { String(Int($0.rounded())) + "°" }
             ?? "\(cpuUsage)%"
-        let columns: [(String, String)] = [("CPU", cpuValue), ("MEM", "\(memoryPressure)%")]
+        let gpuValue = gpuTemperature.map { String(Int($0.rounded())) + "°" } ?? "--"
+        let columns: [(String, String)] = [("CPU", cpuValue), ("MEM", "\(memoryPressure)%"),
+                                           ("GPU", gpuValue)]
         let colWidth = bounds.width / 2
         for (index, (label, value)) in columns.enumerated() {
             let x = bounds.minX + CGFloat(index) * colWidth
@@ -268,7 +284,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private let manager: RunningAppsManager
     private let stats = SystemStats()
     private let popover = NSPopover()
-    private let statusItem = NSStatusBar.system.statusItem(withLength: 76)
+    private let statusItem = NSStatusBar.system.statusItem(withLength: 104)
     private var statsView: MenuBarStatsNSView?
     private var cancellables = Set<AnyCancellable>()
 
@@ -306,12 +322,13 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             .store(in: &cancellables)
 
         // Push live readings into the drawn view.
-        stats.$cpuUsage.combineLatest(stats.$memoryPressure, stats.$cpuTemperature)
+        stats.$cpuUsage.combineLatest(stats.$memoryPressure, stats.$cpuTemperature, stats.$gpuTemperature)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] cpu, mem, temp in
+            .sink { [weak self] cpu, mem, temp, gpu in
                 self?.statsView?.cpuUsage = cpu
                 self?.statsView?.memoryPressure = mem
                 self?.statsView?.cpuTemperature = temp
+                self?.statsView?.gpuTemperature = gpu
             }
             .store(in: &cancellables)
     }
@@ -328,9 +345,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             return
         }
         button.image = nil
-        statusItem.length = 76
+        statusItem.length = 104
         if statsView == nil {
-            let view = MenuBarStatsNSView(frame: NSRect(x: 0, y: 0, width: 76, height: 24))
+            let view = MenuBarStatsNSView(frame: NSRect(x: 0, y: 0, width: 104, height: 24))
             view.autoresizingMask = [.width, .height]
             view.onToggle = { [weak self] in self?.togglePopover() }
             button.addSubview(view)
