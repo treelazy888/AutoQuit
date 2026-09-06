@@ -1105,7 +1105,7 @@ struct ContentView: View {
             }
             footer
         }
-        .frame(width: 400)
+        .frame(width: 320)
     }
 
     // The strip above the list, shown only while auto-quit is standing down:

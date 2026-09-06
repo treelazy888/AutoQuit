@@ -284,9 +284,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private let popover = NSPopover()
     // Created right-to-left so the tiles read CPU | MEM | GPU left-to-right.
     // CPU tile is compact (25pt) per preference; MEM/GPU stay 48pt.
-    private let cpuItem = NSStatusBar.system.statusItem(withLength: 15)
-    private let memItem = NSStatusBar.system.statusItem(withLength: 48)
-    private let gpuItem = NSStatusBar.system.statusItem(withLength: 48)
+    private let cpuItem = NSStatusBar.system.statusItem(withLength: 18)
+    private let memItem = NSStatusBar.system.statusItem(withLength: 18)
+    private let gpuItem = NSStatusBar.system.statusItem(withLength: 18)
     private var tiles: [MenuBarStatItemView] = []
     private var cancellables = Set<AnyCancellable>()
 
@@ -310,7 +310,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
         // Create tiles right-to-left: GPU first (ends up rightmost), then MEM,
         // then CPU — so the menu bar reads CPU | MEM | GPU.
-        let definitions: [(NSStatusItem, String, CGFloat)] = [(gpuItem, "GPU", 48), (memItem, "MEM", 48), (cpuItem, "CPU", 15)]
+        let definitions: [(NSStatusItem, String, CGFloat)] = [(gpuItem, "GPU", 18), (memItem, "MEM", 18), (cpuItem, "CPU", 18)]
         for (item, label, width) in definitions {
             guard let button = item.button else { continue }
             button.image = nil
@@ -363,9 +363,9 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             cpuItem.button?.image = icon(paused: true)
         } else {
             cpuItem.button?.image = nil
-            memItem.length = 48
-            gpuItem.length = 48
-            cpuItem.length = 15
+            memItem.length = 18
+            gpuItem.length = 18
+            cpuItem.length = 18
             for tile in tiles where tile.superview == nil {
                 let button: NSButton? = {
                     switch tile.label {
