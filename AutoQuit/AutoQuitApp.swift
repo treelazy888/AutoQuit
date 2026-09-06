@@ -59,9 +59,10 @@ private final class SMCTemperatureSensor {
     private var ready = false
     // Thermal sensor keys ported from ThermalForge (MIT), verified across
     // M1-M5. Missing keys on a given machine simply return nil and are skipped.
-    private let cpuKeys: [String] = [
-        // aggregate (M5 Max verified)
-        "TCDX", "TCHP", "TCMb",
+    // Per-core sensors only — the CPU tile shows their average (iStat's
+    // "CPU Core Average"); cluster aggregates (TCDX/TCHP/TCMb) are excluded
+    // so they don't skew the mean.
+    private let perCoreKeys: [String] = [
         // per-core (Tp prefix, M1-M5)
         "Tp01", "Tp02", "Tp03", "Tp04", "Tp05", "Tp06", "Tp07", "Tp08",
         "Tp09", "Tp0A", "Tp0B", "Tp0C", "Tp0D", "Tp0F", "Tp0G", "Tp0H",
@@ -197,8 +198,21 @@ private final class SMCTemperatureSensor {
         return best
     }
 
-    // Peak CPU temperature across the aggregate + per-core + hex-sweep sensors.
-    func cpuTemperature() -> Double? { peak(cpuKeys) }
+    private func average(_ keys: [String]) -> Double? {
+        guard ready else { return nil }
+        var sum: Double = 0
+        var count = 0
+        for key in keys {
+            if let v = value(key), (10...125).contains(v) {
+                sum += v; count += 1
+            }
+        }
+        return count > 0 ? sum / Double(count) : nil
+    }
+
+    // CPU core average — the mean over the readable per-core sensors
+    // (efficiency + performance cores), matching iStat's "CPU Core Average".
+    func cpuTemperature() -> Double? { average(perCoreKeys) }
     // Peak GPU temperature.
     func gpuTemperature() -> Double? { peak(gpuKeys) }
 }

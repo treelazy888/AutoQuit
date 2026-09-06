@@ -10,7 +10,12 @@
 - **CPU temperature accuracy**: the decode now tries all known sensor encodings (sp78 / flt / ioft / ui8) and keeps the first plausible reading (15-125°C) — the previous single-format decode missed the hot "flt"-type die sensors entirely (they also report dataSize=0 in keyInfo, which the read path wrongly treated as unreadable). The menu bar now shows the **peak** CPU temperature (hottest core sensor), which matches what other tools report; the per-core average is inherently lower.
 - Also fixed a crash risk: sp78 decoding a byte ≥ 0x80 trapped (UInt16→Int16 overflow); now uses bitPattern conversion.
 
-## Version 1.5.4 - 2026-09-06
+## Version 1.5.6 - 2026-09-06
+
+### Fixes
+- CPU tile temperature now shows the **CPU core average** — the mean over the readable per-core Tp sensors (efficiency + performance cores), matching iStat Menus' "CPU Core Average" methodology. Cluster aggregates are excluded so they don't skew the mean. Verified live: ~48°C under current load (iStat showed 53 under heavier load).
+
+## Version 1.5.5 - 2026-09-06
 
 ### Fixes
 - The popover anchor is back at the **MEM tile** — the 1.5.3 fix was lost when the three-tile rewrite landed (the anchor had reverted to the CPU tile).
