@@ -18,9 +18,12 @@ private final class SMCTemperatureSensor {
     static let shared = SMCTemperatureSensor()
     private var conn: io_connect_t = 0
     private var ready = false
-    // CPU-core temperature sensors (Apple Silicon "Tp" cluster + Intel fallback)
-    private let keys = ["Tp09", "Tp05", "Tp01", "Tp0D", "Tp10", "Tp11",
-                        "Tp04", "Tp08", "Tp12", "Tp13", "Tp14", "TC0P"]
+    // All CPU-cluster temperature sensors (Apple Silicon Tp00-Tp1F + Intel
+    // fallback). The hot die peak (e.g. Tp0E) sits ~10C above the mid-cluster
+    // sensors — reading only a few keys underreports by exactly that.
+    private var keys: [String] {
+        (0...31).map { String(format: "Tp%02X", $0) } + ["TC0P"]
+    }
 
     struct SMCKeyData_t {
         typealias SMCBytes_t = (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,

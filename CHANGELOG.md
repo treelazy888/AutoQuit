@@ -1,3 +1,8 @@
+## Version 1.4.3 - 2026-09-05
+
+### Fixes
+- CPU temperature read ~10°C low: the sensor list only probed a few "Tp" keys, missing the hot die peak (Tp0E, ~70°C on this machine) among others. The list now covers all 32 CPU-cluster sensors (Tp00-Tp1F) plus the Intel fallback, and shows the peak. Verified: peak 70.2°C matches the reference reading.
+
 ## Version 1.4.2 - 2026-09-05
 
 ### Features
