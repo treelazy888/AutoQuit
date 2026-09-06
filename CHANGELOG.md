@@ -4,6 +4,13 @@
 - **Three separate menu-bar tiles instead of one combined panel**: `CPU 61°` `MEM 29%` `GPU 51°` — each tile shows its label on top and its live value below (refreshed every 2s). Clicking any tile toggles the popover.
 - While auto-quit is paused, the MEM/GPU tiles collapse and the CPU tile swaps to the pause glyph, so the stand-down state stays visible without three identical pause icons.
 
+## Version 1.5.2 - 2026-09-06
+
+### Fixes
+- Per-app memory values in the popover are back: the three-tile rewrite lost the `popoverIsOpen` signal the manager needs to run its memory scan. Restored on popover open/close. Verified via AX: rows report memory again.
+- CPU tile narrowed to 15pt per preference.
+- **Version numbering fixed**: build-app.sh had silently reverted to "1.3.2" (relative-path sed failures), so every build since v1.3.3 was mislabeled 1.3.2 in Info.plist even though the feature code was current. All version bumps now use absolute paths.
+
 ## Version 1.4.6 - 2026-09-05
 
 ### Changed

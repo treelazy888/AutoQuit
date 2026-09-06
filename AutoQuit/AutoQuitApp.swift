@@ -283,7 +283,8 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private let stats = SystemStats()
     private let popover = NSPopover()
     // Created right-to-left so the tiles read CPU | MEM | GPU left-to-right.
-    private let cpuItem = NSStatusBar.system.statusItem(withLength: 48)
+    // CPU tile is compact (25pt) per preference; MEM/GPU stay 48pt.
+    private let cpuItem = NSStatusBar.system.statusItem(withLength: 15)
     private let memItem = NSStatusBar.system.statusItem(withLength: 48)
     private let gpuItem = NSStatusBar.system.statusItem(withLength: 48)
     private var tiles: [MenuBarStatItemView] = []
@@ -309,14 +310,14 @@ final class PopoverController: NSObject, NSPopoverDelegate {
 
         // Create tiles right-to-left: GPU first (ends up rightmost), then MEM,
         // then CPU — so the menu bar reads CPU | MEM | GPU.
-        let definitions: [(NSStatusItem, String)] = [(gpuItem, "GPU"), (memItem, "MEM"), (cpuItem, "CPU")]
-        for (item, label) in definitions {
+        let definitions: [(NSStatusItem, String, CGFloat)] = [(gpuItem, "GPU", 48), (memItem, "MEM", 48), (cpuItem, "CPU", 15)]
+        for (item, label, width) in definitions {
             guard let button = item.button else { continue }
             button.image = nil
             button.target = self
             button.action = #selector(togglePopover)
             let tile = MenuBarStatItemView(label: label)
-            tile.frame = NSRect(x: 0, y: 0, width: 48, height: 24)
+            tile.frame = NSRect(x: 0, y: 0, width: width, height: 24)
             tile.autoresizingMask = [.width, .height]
             tile.onToggle = { [weak self] in self?.togglePopover() }
             button.addSubview(tile)
@@ -364,7 +365,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             cpuItem.button?.image = nil
             memItem.length = 48
             gpuItem.length = 48
-            cpuItem.length = 48
+            cpuItem.length = 15
             for tile in tiles where tile.superview == nil {
                 let button: NSButton? = {
                     switch tile.label {
@@ -393,6 +394,10 @@ final class PopoverController: NSObject, NSPopoverDelegate {
         if let button = cpuItem.button {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             installOutsideClickMonitors()
+            // The popover's window doesn't reliably become key, so tell the
+            // manager directly — it only measures memory while "a window is
+            // open" and would otherwise never measure after a relaunch.
+            manager.popoverIsOpen = true
         }
     }
 
@@ -439,6 +444,7 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         lastCloseDate = Date()
         removeOutsideClickMonitors()
+        manager.popoverIsOpen = false
     }
 }
 
