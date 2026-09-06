@@ -4,6 +4,12 @@
 - **Three separate menu-bar tiles instead of one combined panel**: `CPU 61°` `MEM 29%` `GPU 51°` — each tile shows its label on top and its live value below (refreshed every 2s). Clicking any tile toggles the popover.
 - While auto-quit is paused, the MEM/GPU tiles collapse and the CPU tile swaps to the pause glyph, so the stand-down state stays visible without three identical pause icons.
 
+## Version 1.5.5 - 2026-09-06
+
+### Fixes
+- **CPU temperature accuracy**: the decode now tries all known sensor encodings (sp78 / flt / ioft / ui8) and keeps the first plausible reading (15-125°C) — the previous single-format decode missed the hot "flt"-type die sensors entirely (they also report dataSize=0 in keyInfo, which the read path wrongly treated as unreadable). The menu bar now shows the **peak** CPU temperature (hottest core sensor), which matches what other tools report; the per-core average is inherently lower.
+- Also fixed a crash risk: sp78 decoding a byte ≥ 0x80 trapped (UInt16→Int16 overflow); now uses bitPattern conversion.
+
 ## Version 1.5.4 - 2026-09-06
 
 ### Fixes

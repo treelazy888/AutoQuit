@@ -124,6 +124,14 @@ private final class SMCTemperatureSensor {
     }
     deinit { if ready { IOServiceClose(conn) } }
 
+    private func keyChars(_ v: UInt32) -> String {
+        String(format: "%c%c%c%c",
+               UInt8(truncatingIfNeeded: v >> 24),
+               UInt8(truncatingIfNeeded: v >> 16),
+               UInt8(truncatingIfNeeded: v >> 8),
+               UInt8(truncatingIfNeeded: v))
+    }
+
     private func call(_ index: UInt8, input: inout SMCKeyData_t, output: inout SMCKeyData_t) -> kern_return_t {
         let inputSize = MemoryLayout<SMCKeyData_t>.stride
         var outputSize = MemoryLayout<SMCKeyData_t>.stride
@@ -135,17 +143,14 @@ private final class SMCTemperatureSensor {
         var output = SMCKeyData_t()
         input.key = key.utf8.reduce(0) { $0 << 8 | UInt32($1) }
         input.data8 = 9   // readKeyInfo
-        guard call(2, input: &input, output: &output) == kIOReturnSuccess, output.result == 0,
-              Int(output.keyInfo.dataSize) > 0 else { return nil }
-        let typeInt = output.keyInfo.dataType.bigEndian
-        let type = String(format: "%c%c%c%c",
-                          UInt8(truncatingIfNeeded: typeInt >> 24),
-                          UInt8(truncatingIfNeeded: typeInt >> 16),
-                          UInt8(truncatingIfNeeded: typeInt >> 8),
-                          UInt8(truncatingIfNeeded: typeInt))
+        guard call(2, input: &input, output: &output) == kIOReturnSuccess,
+              output.result == 0 else { return nil }
+        let type = keyChars(output.keyInfo.dataType)
         input.keyInfo.dataSize = output.keyInfo.dataSize
-        input.data8 = 5   // readBytes
-        guard call(2, input: &input, output: &output) == kIOReturnSuccess, output.result == 0 else { return nil }
+        input.data8 = 5   // readBytes — NOTE: the keyInfo dataSize is unreliable
+        // (several flt sensors report 0) but the read still returns valid data.
+        guard call(2, input: &input, output: &output) == kIOReturnSuccess,
+              output.result == 0 else { return nil }
         let t = output.bytes
         return ([t.0, t.1, t.2, t.3, t.4, t.5, t.6, t.7, t.8, t.9, t.10, t.11,
                  t.12, t.13, t.14, t.15, t.16, t.17, t.18, t.19, t.20, t.21,
@@ -157,30 +162,28 @@ private final class SMCTemperatureSensor {
         return Self.decodeTemp(bytes: bytes, type: type)
     }
 
-    // Decode a sensor value. The type string's byte order varies (a 4-char code
-    // stored little-endian reads back reversed — "sp78" as "87ps", "flt " as
-    // " tlf"), so match by character SET, not by literal.
+    // Decode a sensor value. The reported type AND its byte order are
+    // unreliable (4-char codes read back byte-order-reversed, and the keyInfo
+    // dataSize lies), so try the known encodings and keep the first plausible
+    // one (15-125°C), preferring the encoding that matches the reported type.
     static func decodeTemp(bytes: [UInt8], type: String) -> Double? {
-        let chars = Set(type)
-        if chars == Set("sp78") || chars == Set("sp87") {
-            return Double(Int16(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))) / 256.0
-        }
-        if chars == Set("flt ") {
-            var f: Float = 0
-            withUnsafeMutableBytes(of: &f) { dst in
-                for i in 0..<4 { dst[i] = bytes[i] }
-            }
-            return (0...150).contains(Double(f)) ? Double(f) : nil
-        }
-        if chars == Set("ui8 ") { return Double(bytes[0]) }
-        if chars == Set("ioft") {
-            // 8-byte IOKit fixed point: first 4 bytes = 16.16 little-endian
-            let raw = UInt32(bytes[0]) | (UInt32(bytes[1]) << 8)
-                | (UInt32(bytes[2]) << 16) | (UInt32(bytes[3]) << 24)
-            let v = Double(raw >> 16) + Double(raw & 0xFFFF) / 65536.0
-            return (0...150).contains(v) ? v : nil
-        }
-        return nil
+        guard bytes.count >= 4 else { return nil }
+        var candidates: [(String, Double)] = []
+        let sp78 = Double(Int16(bitPattern: UInt16(bytes[0]) << 8 | UInt16(bytes[1]))) / 256.0
+        if (15...125).contains(sp78) { candidates.append(("sp78", sp78)) }
+        var f: Float = 0
+        withUnsafeMutableBytes(of: &f) { dst in for i in 0..<4 { dst[i] = bytes[i] } }
+        if (15...125).contains(Double(f)) { candidates.append(("flt", Double(f))) }
+        let ioftRaw = UInt32(bytes[0]) | (UInt32(bytes[1]) << 8)
+            | (UInt32(bytes[2]) << 16) | (UInt32(bytes[3]) << 24)
+        let ioft = Double(ioftRaw >> 16) + Double(ioftRaw & 0xFFFF) / 65536.0
+        if (15...125).contains(ioft) { candidates.append(("ioft", ioft)) }
+        if candidates.isEmpty { return nil }
+        let typeChars = Set(type.replacingOccurrences(of: " ", with: ""))
+        if let match = candidates.first(where: {
+            Set($0.0.replacingOccurrences(of: " ", with: "")) == typeChars
+        }) { return match.1 }
+        return candidates[0].1
     }
 
     private func peak(_ keys: [String]) -> Double? {
