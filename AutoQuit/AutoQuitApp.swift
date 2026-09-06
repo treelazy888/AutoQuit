@@ -10,13 +10,135 @@ import AppKit
 // of every running app and decides when to quit the idle ones.
 let runningAppsManager = RunningAppsManager()
 
+// AppleSMC temperature reader. The param struct MUST be the full 84-byte
+// layout (key + version + limits + keyInfo + padding + result + status +
+// data8 + data32 + 32 data bytes) — a simplified struct returns
+// kIOReturnBadArgument for every call.
+private final class SMCTemperatureSensor {
+    static let shared = SMCTemperatureSensor()
+    private var conn: io_connect_t = 0
+    private var ready = false
+    // CPU-core temperature sensors (Apple Silicon "Tp" cluster + Intel fallback)
+    private let keys = ["Tp09", "Tp05", "Tp01", "Tp0D", "Tp10", "Tp11",
+                        "Tp04", "Tp08", "Tp12", "Tp13", "Tp14", "TC0P"]
+
+    struct SMCKeyData_t {
+        typealias SMCBytes_t = (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
+                                UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
+                                UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
+                                UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
+                                UInt8, UInt8, UInt8, UInt8)
+        struct vers_t {
+            var major: CUnsignedChar = 0
+            var minor: CUnsignedChar = 0
+            var build: CUnsignedChar = 0
+            var reserved: CUnsignedChar = 0
+            var release: CUnsignedShort = 0
+        }
+        struct LimitData_t {
+            var version: UInt16 = 0
+            var length: UInt16 = 0
+            var cpuPLimit: UInt32 = 0
+            var gpuPLimit: UInt32 = 0
+            var memPLimit: UInt32 = 0
+        }
+        struct keyInfo_t {
+            var dataSize: IOByteCount32 = 0
+            var dataType: UInt32 = 0
+            var dataAttributes: UInt8 = 0
+        }
+        var key: UInt32 = 0
+        var vers = vers_t()
+        var pLimitData = LimitData_t()
+        var keyInfo = keyInfo_t()
+        var padding: UInt16 = 0
+        var result: UInt8 = 0
+        var status: UInt8 = 0
+        var data8: UInt8 = 0
+        var data32: UInt32 = 0
+        var bytes: SMCBytes_t = (UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
+                                 UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
+                                 UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
+                                 UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
+                                 UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
+                                 UInt8(0), UInt8(0))
+    }
+
+    init() {
+        let device = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSMC"))
+        guard device != 0 else { return }
+        defer { IOObjectRelease(device) }
+        var newConn: io_connect_t = 0
+        if IOServiceOpen(device, mach_task_self_, 0, &newConn) == KERN_SUCCESS {
+            conn = newConn
+            ready = true
+        }
+    }
+    deinit { if ready { IOServiceClose(conn) } }
+
+    private func call(_ index: UInt8, input: inout SMCKeyData_t, output: inout SMCKeyData_t) -> kern_return_t {
+        let inputSize = MemoryLayout<SMCKeyData_t>.stride
+        var outputSize = MemoryLayout<SMCKeyData_t>.stride
+        return IOConnectCallStructMethod(conn, UInt32(index), &input, inputSize, &output, &outputSize)
+    }
+
+    private func readKey(_ key: String) -> (bytes: [UInt8], type: String)? {
+        var input = SMCKeyData_t()
+        var output = SMCKeyData_t()
+        input.key = key.utf8.reduce(0) { $0 << 8 | UInt32($1) }
+        input.data8 = 9   // readKeyInfo
+        guard call(2, input: &input, output: &output) == kIOReturnSuccess, output.result == 0,
+              Int(output.keyInfo.dataSize) > 0 else { return nil }
+        let typeInt = output.keyInfo.dataType.bigEndian
+        let type = String(format: "%c%c%c%c",
+                          UInt8(truncatingIfNeeded: typeInt >> 24),
+                          UInt8(truncatingIfNeeded: typeInt >> 16),
+                          UInt8(truncatingIfNeeded: typeInt >> 8),
+                          UInt8(truncatingIfNeeded: typeInt))
+        input.keyInfo.dataSize = output.keyInfo.dataSize
+        input.data8 = 5   // readBytes
+        guard call(2, input: &input, output: &output) == kIOReturnSuccess, output.result == 0 else { return nil }
+        let t = output.bytes
+        return ([t.0, t.1, t.2, t.3, t.4, t.5, t.6, t.7, t.8, t.9, t.10, t.11,
+                 t.12, t.13, t.14, t.15, t.16, t.17, t.18, t.19, t.20, t.21,
+                 t.22, t.23, t.24, t.25, t.26, t.27, t.28, t.29, t.30, t.31], type)
+    }
+
+    private func value(_ key: String) -> Double? {
+        guard let (bytes, type) = readKey(key) else { return nil }
+        switch type {
+        case "sp78", "sp87":
+            let raw = Int16(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
+            return Double(raw) / 256.0
+        case "flt ":
+            var f: Float = 0
+            withUnsafeMutableBytes(of: &f) { dst in
+                for i in 0..<4 { dst[i] = bytes[i] }
+            }
+            return Double(f)
+        case "ui8 ": return Double(bytes[0])
+        default: return nil
+        }
+    }
+
+    // Peak CPU-core temperature across the readable sensors (25-120°C plausible).
+    func cpuTemperature() -> Double? {
+        guard ready else { return nil }
+        var best: Double?
+        for key in keys {
+            if let v = value(key), (25...120).contains(v) {
+                best = max(best ?? 0, v)
+            }
+        }
+        return best
+    }
+}
+
 // Live CPU/memory readings for the menu-bar text. Refreshed every 2 seconds.
-// CPU temperature would be the natural left value, but macOS 26 blocks SMC
-// sensor reads for third-party apps (every AppleSMC call returns
-// kIOReturnBadArgument), so the bottom-left shows CPU usage instead.
 final class SystemStats: ObservableObject {
     @Published var cpuUsage = 0
     @Published var memoryPressure = 0
+    @Published var cpuTemperature: Double?
     private var prevUser: UInt32 = 0
     private var prevSys: UInt32 = 0
     private var prevIdle: UInt32 = 0
@@ -34,6 +156,9 @@ final class SystemStats: ObservableObject {
     deinit { timer?.invalidate() }
 
     func refresh() {
+        // CPU temperature: peak of the readable CPU-core sensors.
+        cpuTemperature = SMCTemperatureSensor.shared.cpuTemperature()
+
         // CPU usage: ticks since the last refresh, all cores pooled.
         var countIn: mach_msg_type_number_t = 0
         var countOut: mach_msg_type_number_t = 0
@@ -87,6 +212,7 @@ private final class MenuBarStatsNSView: NSView {
     var onToggle: (() -> Void)? { didSet { needsDisplay = true } }
     var cpuUsage = 0 { didSet { needsDisplay = true } }
     var memoryPressure = 0 { didSet { needsDisplay = true } }
+    var cpuTemperature: Double? { didSet { needsDisplay = true } }
 
 
     override func draw(_ dirtyRect: NSRect) {
@@ -98,7 +224,11 @@ private final class MenuBarStatsNSView: NSView {
             .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
             .foregroundColor: NSColor.labelColor,
         ]
-        let columns: [(String, String)] = [("CPU", "\(cpuUsage)%"), ("MEM", "\(memoryPressure)%")]
+        // Bottom-left prefers the CPU temperature in Celsius; usage % is the
+        // fallback when the sensors are unreadable.
+        let cpuValue = cpuTemperature.map { String(Int($0.rounded())) + "°" }
+            ?? "\(cpuUsage)%"
+        let columns: [(String, String)] = [("CPU", cpuValue), ("MEM", "\(memoryPressure)%")]
         let colWidth = bounds.width / 2
         for (index, (label, value)) in columns.enumerated() {
             let x = bounds.minX + CGFloat(index) * colWidth
@@ -173,11 +303,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
             .store(in: &cancellables)
 
         // Push live readings into the drawn view.
-        stats.$cpuUsage.combineLatest(stats.$memoryPressure)
+        stats.$cpuUsage.combineLatest(stats.$memoryPressure, stats.$cpuTemperature)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] cpu, mem in
+            .sink { [weak self] cpu, mem, temp in
                 self?.statsView?.cpuUsage = cpu
                 self?.statsView?.memoryPressure = mem
+                self?.statsView?.cpuTemperature = temp
             }
             .store(in: &cancellables)
     }

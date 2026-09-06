@@ -1,3 +1,8 @@
+## Version 1.4.2 - 2026-09-05
+
+### Features
+- **The menu bar now shows the real CPU temperature** (bottom-left, e.g. "60°"). My earlier claim that macOS 26 blocks SMC reads was wrong — the actual bug was an incomplete 60-byte parameter struct with wrong field offsets; the full 84-byte AppleSMC struct (as used by open-source SMC tools) works fine. The temperature is the peak of the readable CPU-core sensors ("Tp" cluster), refreshed every 2s. CPU usage % remains the fallback if the sensors are unreadable.
+
 ## Version 1.4.1 - 2026-09-05
 
 ### Fixes
